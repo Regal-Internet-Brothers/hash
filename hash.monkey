@@ -68,6 +68,23 @@ Import external
 
 ' Functions:
 
+' Quick wrappers for the standard classes' 'Run' commands:
+Function MD5:String(Data:DataBuffer)
+	Return MD5BufferHasher.Run(Data)
+End
+
+Function MD5:String(S:Stream)
+	Return MD5StreamHasher.Run(S)
+End
+
+Function MD5:String(IA:Int[])
+	Return MD5Hasher<Int[]>.Run(IA)
+End
+
+Function MD5:String(Str:String)
+	Return MD5Hasher<String>.Run(Str)
+End
+
 ' This is effectively just a really quick rewrite of Java's 'hashCode' method:
 Function HashCode:Int(S:String)
 	' Local variable(s):
