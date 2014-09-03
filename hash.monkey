@@ -47,11 +47,16 @@ Public
 #If TARGET = "android"
 	#MD5_STREAM_CACHE_MODE = MD5_STREAM_CACHE_MODE_ARRAY ' MD5_STREAM_CACHE_MODE_STRING
 #Else
-	#MD5_STREAM_CACHE_MODE = MD5_STREAM_CACHE_MODE_ARRAY ' MD5_STREAM_CACHE_MODE_BUFFER
+	#MD5_STREAM_CACHE_MODE = MD5_STREAM_CACHE_MODE_BUFFER ' MD5_STREAM_CACHE_MODE_ARRAY
 #End
 
 ' Imports (External):
-Import util
+#If UTIL_IMPLEMENTED
+	Import util
+#Else
+	Import retrostrings
+#End
+
 Import sizeof
 
 ' Standard BRL modules:
@@ -100,6 +105,10 @@ Function HashCode:Int(S:String)
 End
 
 Function RotateLeft:Int(Value:Int, ShiftBits:Int)
+	#If Not SIZEOF_IMPLEMENTED
+		Const SizeOf_Integer_InBits:Int = 4*8 ' 32-bit.
+	#End
+	
 	Return Lsl(Value, ShiftBits) | Lsr( Value, (SizeOf_Integer_InBits - ShiftBits))
 	'Return (Value Shl ShiftBits) | (Value Shr (32-ShiftBits))
 End
@@ -586,6 +595,8 @@ End
 Class MD5Engine<T> Extends MD5Component Abstract
 	' Constant variable(s):
 	Const BLOCK_SIZE:Int = 16
+	
+	Const ZERO:Int = 0
 	Const AUTO:Int = -1
 	
 	' Defaults:
@@ -631,7 +642,7 @@ Class MD5Engine<T> Extends MD5Component Abstract
 				BlockID = (BlockIndex/BLOCK_SIZE)
 			Endif
 			
-			GenericUtilities<Int>.Zero(Block)
+			Block = ZeroBlock(Block)
 			
 			For Local I:Int = BlockCalculationScope*BlockID Until Min(BlockCalculationScope*(BlockID+1), Length)
 				'(I+Offset) Mod Length
@@ -690,6 +701,18 @@ Class MD5Engine<T> Extends MD5Component Abstract
 	
 	Method CorrectByte:Int(B:Int)
 		Return B
+	End
+	
+	Method ZeroBlock:Int[](Block:Int[])
+		#If UTIL_IMPLEMENTED
+			GenericUtilities<Int>.Zero(Block)
+		#Else
+			For Local Index:= 0 Until Block.Length()
+				Block[Index] = ZERO
+			Next
+		#End
+		
+		Return Block
 	End
 	
 	' Purely virtual methods:
