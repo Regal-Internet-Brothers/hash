@@ -16,9 +16,9 @@ Public
 #If HASH_EXTERNAL_SHIFTING
 	#If LANG = "cpp"
 		' All of the C++ targets SHOULD support this.
-		Import "native/extra.${LANG}"
+		Import "native/hash.${LANG}"
 	#Else
-		Import "native/extra.${TARGET}.${LANG}"
+		Import "native/hash.${TARGET}.${LANG}"
 	#End
 #End
 
