@@ -68,25 +68,28 @@ Import brl.databuffer
 ' External language bindings.
 Import external
 
+' Aliases:
+Alias Hash = String
+
 ' Global variable(s):
 ' Nothing so far.
 
 ' Functions:
 
 ' Quick wrappers for the standard classes' 'Run' commands:
-Function MD5:String(Data:DataBuffer)
+Function MD5:Hash(Data:DataBuffer)
 	Return MD5BufferHasher.Run(Data)
 End
 
-Function MD5:String(S:Stream)
+Function MD5:Hash(S:Stream)
 	Return MD5StreamHasher.Run(S)
 End
 
-Function MD5:String(IA:Int[])
+Function MD5:Hash(IA:Int[])
 	Return MD5Hasher<Int[]>.Run(IA)
 End
 
-Function MD5:String(Str:String)
+Function MD5:Hash(Str:String)
 	Return MD5Hasher<String>.Run(Str)
 End
 
@@ -252,7 +255,7 @@ Class MD5BufferHasher Extends MD5Engine<DataBuffer> Final
 		Return _Instance
 	End
 	
-	Function Run:String(Data:DataBuffer)
+	Function Run:Hash(Data:DataBuffer)
 		Return Instance().Execute(Data)
 	End
 	
@@ -348,7 +351,7 @@ Class MD5StreamHasher Extends MD5Engine<Stream> Final ' This may end up inheriti
 		Return _Instance
 	End
 	
-	Function Run:String(Data:Stream)
+	Function Run:Hash(Data:Stream)
 		Return Instance().Execute(Data)
 	End
 	
@@ -569,7 +572,7 @@ Class MD5Hasher<T> Extends MD5Engine<T> Final
 		Return _Instance
 	End
 	
-	Function Run:String(Data:T)
+	Function Run:Hash(Data:T)
 		Return Instance().Execute(Data)
 	End
 	
@@ -619,7 +622,7 @@ Class MD5Engine<T> Extends MD5Component Abstract
 	End
 	
 	' Methods (Public):
-	Method Execute:String(Message:T, Length:Int=AUTO, Offset:Int=Default_Offset)
+	Method Execute:Hash(Message:T, Length:Int=AUTO, Offset:Int=Default_Offset)
 		If (Length = AUTO) Then
 			Length = RetrieveLength(Message)
 		Endif
