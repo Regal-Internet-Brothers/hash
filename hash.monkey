@@ -69,27 +69,29 @@ Import brl.databuffer
 Import external
 
 ' Aliases:
-Alias Hash = String
+Alias HexValue = String
+Alias Hash = HexValue
+Alias MD5Hash = Hash
 
 ' Global variable(s):
 ' Nothing so far.
 
-' Functions:
+' Functions (Public):
 
 ' Quick wrappers for the standard classes' 'Run' commands:
-Function MD5:Hash(Data:DataBuffer)
+Function MD5:MD5Hash(Data:DataBuffer)
 	Return MD5BufferHasher.Run(Data)
 End
 
-Function MD5:Hash(S:Stream)
+Function MD5:MD5Hash(S:Stream)
 	Return MD5StreamHasher.Run(S)
 End
 
-Function MD5:Hash(IA:Int[])
+Function MD5:MD5Hash(IA:Int[])
 	Return MD5Hasher<Int[]>.Run(IA)
 End
 
-Function MD5:Hash(Str:String)
+Function MD5:MD5Hash(Str:String)
 	Return MD5Hasher<String>.Run(Str)
 End
 
@@ -107,6 +109,11 @@ Function HashCode:Int(S:String)
 	Return Hash
 End
 
+Function HashCodeInHex:HexValue(S:String)
+	' Return the hash-code in hexadecimal.
+	Return IntToHex(HashCode(S))
+End
+
 Function RotateLeft:Int(Value:Int, ShiftBits:Int)
 	#If Not SIZEOF_IMPLEMENTED
 		Const SizeOf_Integer_InBits:Int = 4*8 ' 32-bit.
@@ -115,6 +122,15 @@ Function RotateLeft:Int(Value:Int, ShiftBits:Int)
 	Return Lsl(Value, ShiftBits) | Lsr( Value, (SizeOf_Integer_InBits - ShiftBits))
 	'Return (Value Shl ShiftBits) | (Value Shr (32-ShiftBits))
 End
+
+' Functions (Private):
+Private
+
+Function IntToHex:HexValue(Data:Int)
+	Return HexLE(Data)
+End
+
+Public
 
 ' Classes:
 Class MD5Data
@@ -255,7 +271,7 @@ Class MD5BufferHasher Extends MD5Engine<DataBuffer> Final
 		Return _Instance
 	End
 	
-	Function Run:Hash(Data:DataBuffer)
+	Function Run:MD5Hash(Data:DataBuffer)
 		Return Instance().Execute(Data)
 	End
 	
@@ -351,7 +367,7 @@ Class MD5StreamHasher Extends MD5Engine<Stream> Final ' This may end up inheriti
 		Return _Instance
 	End
 	
-	Function Run:Hash(Data:Stream)
+	Function Run:MD5Hash(Data:Stream)
 		Return Instance().Execute(Data)
 	End
 	
@@ -572,7 +588,7 @@ Class MD5Hasher<T> Extends MD5Engine<T> Final
 		Return _Instance
 	End
 	
-	Function Run:Hash(Data:T)
+	Function Run:MD5Hash(Data:T)
 		Return Instance().Execute(Data)
 	End
 	
@@ -622,7 +638,7 @@ Class MD5Engine<T> Extends MD5Component Abstract
 	End
 	
 	' Methods (Public):
-	Method Execute:Hash(Message:T, Length:Int=AUTO, Offset:Int=Default_Offset)
+	Method Execute:MD5Hash(Message:T, Length:Int=AUTO, Offset:Int=Default_Offset)
 		If (Length = AUTO) Then
 			Length = RetrieveLength(Message)
 		Endif
@@ -699,7 +715,7 @@ Class MD5Engine<T> Extends MD5Component Abstract
 			DiscardCache()
 		Endif
 		
-		Return HexLE((A0)) + HexLE((B0)) + HexLE((C0)) + HexLE((D0))
+		Return IntToHex((A0)) + IntToHex((B0)) + IntToHex((C0)) + IntToHex((D0))
 	End
 	
 	Method CorrectByte:Int(B:Int)
