@@ -40,11 +40,11 @@ Public
 
 ' Fallbacks:
 #If Not HASH_EXTERNAL_SHIFTING
-	Function Lsr:Int(Number:Int, ShiftBy)
+	Function Lsr:Int(Number:Int, ShiftBy:Int)
 		Return (Number Shr ShiftBy)
 	End
 	
-	Function Lsl:Int(Number:Int, ShiftBy)
+	Function Lsl:Int(Number:Int, ShiftBy:Int)
 		Return (Number Shl ShiftBy)
 	End
 #End
