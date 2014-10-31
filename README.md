@@ -1,7 +1,7 @@
 hash
 ====
 
-A module containing several hashing functions for the Monkey X programming language.
+A module containing several hashing functions for the [Monkey programming language](https://github.com/blitz-research/monkey).
 Most notably: A multi-input MD5 implementation, and a quick rewrite of Java's 'hashCode' command.
 
 [Loosely based on the MD5 implementations provided by the Monkey community.](http://www.monkey-x.com/Community/posts.php?topic=3483)
