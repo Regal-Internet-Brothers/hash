@@ -73,26 +73,33 @@ Alias HexValue = String
 Alias Hash = HexValue
 Alias MD5Hash = Hash
 
+' Constant variable(s):
+#If UTIL_IMPLEMENTED
+	Const MD5_AUTO:= UTIL_AUTO
+#Else
+	Const MD5_AUTO:Int = -1
+#End
+
 ' Global variable(s):
 ' Nothing so far.
 
 ' Functions (Public):
 
 ' Quick wrappers for the standard classes' 'Run' commands:
-Function MD5:MD5Hash(Data:DataBuffer)
-	Return MD5BufferHasher.Run(Data)
+Function MD5:MD5Hash(Data:DataBuffer, Length:Int=MD5_AUTO, Offset:Int=0)
+	Return MD5BufferHasher.Run(Data, Length, Offset)
 End
 
-Function MD5:MD5Hash(S:Stream)
-	Return MD5StreamHasher.Run(S)
+Function MD5:MD5Hash(S:Stream, Length:Int=MD5_AUTO, Offset:Int=0)
+	Return MD5StreamHasher.Run(S, Length, Offset)
 End
 
-Function MD5:MD5Hash(IA:Int[])
-	Return MD5Hasher<Int[]>.Run(IA)
+Function MD5:MD5Hash(IA:Int[], Length:Int=MD5_AUTO, Offset:Int=0)
+	Return MD5Hasher<Int[]>.Run(IA, Length, Offset)
 End
 
-Function MD5:MD5Hash(Str:String)
-	Return MD5Hasher<String>.Run(Str)
+Function MD5:MD5Hash(Str:String, Length:Int=MD5_AUTO, Offset:Int=0)
+	Return MD5Hasher<String>.Run(Str, Length, Offset)
 End
 
 ' This is effectively just a really quick rewrite of Java's 'hashCode' method:
@@ -216,28 +223,28 @@ End
 
 Class MD5Component
 	' Global variable(s):
-	Global Standard_MD5DataData:MD5Data
+	Global Standard_MD5Data:MD5Data
 	
 	' Functions:
 	Function Init:Void()
-		If (Standard_MD5DataData <> Null) Then
+		If (Standard_MD5Data <> Null) Then
 			Return
 		Endif
 		
-		Standard_MD5DataData = New MD5Data(True, True)
+		Standard_MD5Data = New MD5Data(True, True)
 		
 		Return
 	End
 	
 	' This isn't recommended:
 	Function DeInit:Void()
-		If (Standard_MD5DataData = Null) Then
+		If (Standard_MD5Data = Null) Then
 			Return
 		Endif
 		
-		Standard_MD5DataData.Free()
+		Standard_MD5Data.Free()
 		
-		Standard_MD5DataData = Null
+		Standard_MD5Data = Null
 		
 		Return
 	End
@@ -271,8 +278,8 @@ Class MD5BufferHasher Extends MD5Engine<DataBuffer> Final
 		Return _Instance
 	End
 	
-	Function Run:MD5Hash(Data:DataBuffer)
-		Return Instance().Execute(Data)
+	Function Run:MD5Hash(Data:DataBuffer, Length:Int=AUTO, Offset:Int=Default_Offset)
+		Return Instance().Execute(Data, Length, Offset)
 	End
 	
 	' Constructor(s):
@@ -367,8 +374,8 @@ Class MD5StreamHasher Extends MD5Engine<Stream> Final ' This may end up inheriti
 		Return _Instance
 	End
 	
-	Function Run:MD5Hash(Data:Stream)
-		Return Instance().Execute(Data)
+	Function Run:MD5Hash(Data:Stream, Length:Int=AUTO, Offset:Int=Default_Offset)
+		Return Instance().Execute(Data, Length, Offset)
 	End
 	
 	' Constructor(s):
@@ -588,8 +595,8 @@ Class MD5Hasher<T> Extends MD5Engine<T> Final
 		Return _Instance
 	End
 	
-	Function Run:MD5Hash(Data:T)
-		Return Instance().Execute(Data)
+	Function Run:MD5Hash(Data:T, Length:Int=AUTO, Offset:Int=Default_Offset)
+		Return Instance().Execute(Data, Length, Offset)
 	End
 	
 	' Constructor(s):
@@ -616,7 +623,7 @@ Class MD5Engine<T> Extends MD5Component Abstract
 	Const BLOCK_SIZE:Int = 16
 	
 	Const ZERO:Int = 0
-	Const AUTO:Int = -1
+	Const AUTO:= MD5_AUTO
 	
 	' Defaults:
 	Const Default_Offset:Int = 0
@@ -628,7 +635,7 @@ Class MD5Engine<T> Extends MD5Component Abstract
 	Method New(ClearCacheWhenFinished:Bool=Default_ClearCacheWhenFinished)
 		Init()
 		
-		Self.MetaData = Standard_MD5DataData
+		Self.MetaData = Standard_MD5Data
 		Self.ClearCacheWhenFinished = ClearCacheWhenFinished
 	End
 	
@@ -652,7 +659,7 @@ Class MD5Engine<T> Extends MD5Component Abstract
 		Local D0:Int = $10325476 ' 271733878
 		
 		Local VirtualBlockArraySize:= (BlockCount * BLOCK_SIZE)
-		Local BlockCalculationScope:Int = (BLOCK_SIZE Shl 2)
+		Local BlockCalculationScope:= (BLOCK_SIZE Shl 2)
 		
 		For Local BlockIndex:= 0 Until VirtualBlockArraySize Step BLOCK_SIZE
 			Local BlockID:Int = 0
@@ -663,7 +670,7 @@ Class MD5Engine<T> Extends MD5Component Abstract
 			
 			Block = ZeroBlock(Block)
 			
-			For Local I:Int = BlockCalculationScope*BlockID Until Min(BlockCalculationScope*(BlockID+1), Length)
+			For Local I:= BlockCalculationScope*BlockID Until Min(BlockCalculationScope*(BlockID+1), Length)
 				'(I+Offset) Mod Length
 				Block[((I Shr 2) Mod BLOCK_SIZE)] |= (CorrectByte(ExtractData(Message, (I+Offset), Length)) Shl ((I Mod 4) * 8))
 			Next
@@ -684,17 +691,29 @@ Class MD5Engine<T> Extends MD5Component Abstract
 			
 			For Local I:= 0 Until 64
 				If (I < 16) Then
-					F = (B & C) | ((~B) & D)
+					'F = (B & C) | ((~B) & D)
+					'G = I
+					
+					F = D ~ (B & (C ~ D))
 					G = I
 				Elseif (I < 32) Then
-					F = (D & B) | ((~D) & C)
-					G = (5*I + 1) Mod 16
+					'F = (D & B) | ((~D) & C)
+					'G = (5*I + 1) Mod 16
+					
+					F = C ~ (D & (B ~ C))
+					G = (5 * I + 1) Mod 16
 				Elseif (I < 48) Then
+					'F = B ~ C ~ D
+					'G = (3*I + 5) Mod 16
+					
 					F = B ~ C ~ D
-					G = (3*I + 5) Mod 16
+					G = (3 * I + 5) Mod 16
 				Elseif (I < 64) Then
+					'F = C ~ (B | (~D))
+					'G = (7*I) Mod 16
+					
 					F = C ~ (B | (~D))
-					G = (7*I) Mod 16
+					G = (7 * I) Mod 16
 				Endif
 				
 				Local TempD:= D
