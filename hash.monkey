@@ -50,6 +50,23 @@ Public
 	#MD5_STREAM_CACHE_MODE = MD5_STREAM_CACHE_MODE_BUFFER ' MD5_STREAM_CACHE_MODE_ARRAY
 #End
 
+' If this is enabled, less memory will be used, but performance will be slightly worse.
+#MD5_ALTERNATE_SHIFT = False ' True
+
+' By enabling this, you give this module the option to generate shared data on runtime (If needed).
+' This is acts as a request, not a demand. At the end of the day, it's the module's call.
+#MD5_GENERATE_DATA_WHERE_POSSIBLE = True
+
+#Rem
+	If this is enabled, this module will used an unrolled implementation of the main block processing-routine.
+	Such an act is possible with some targets' compilers, but not all are capable of this.
+	For this reason, I've added the option to manually do it. Use this at your own risk, it could be faster on some targets.
+	
+	ATTENTION: The 'Standard_MD5Data' object will be unavailable if this is enabled. The 'MD5Data' class is still present, however.
+#End
+
+#MD5_MANUAL_PROCESSING = False ' True
+
 ' Imports (External):
 #If UTIL_IMPLEMENTED
 	Import util
@@ -142,6 +159,31 @@ Public
 ' Classes:
 Class MD5Data
 	' Constant variable(s):
+	Const BLOCK_SIZE:= 16
+	Const BLOCK_SCOPE:= (BLOCK_SIZE Shl 2)
+	
+	' Shift values (Normally, the "K" values would be here too, but there's just too many):
+	#If MD5_ALTERNATE_SHIFT Or Not MD5_GENERATE_DATA_WHERE_POSSIBLE Or MD5_MANUAL_PROCESSING 
+		Const S1_1:= 7
+		Const S1_2:= 12
+		Const S1_3:= 17
+		Const S1_4:= 22
+		
+		Const S2_1:= 5
+		Const S2_2:= 9
+		Const S2_3:= 14
+		Const S2_4:= 20
+		
+		Const S3_1:= 4
+		Const S3_2:= 11
+		Const S3_3:= 16
+		Const S3_4:= 23
+		
+		Const S4_1:= 6
+		Const S4_2:= 10
+		Const S4_3:= 15
+		Const S4_4:= 21
+	#End
 	
 	' Defaults:
 	
@@ -184,41 +226,56 @@ Class MD5Data
 	End
 	
 	Method InitShiftTable:Int[]()
-		Shift = New Int[64]
+		#If Not MD5_ALTERNATE_SHIFT
+			#If MD5_GENERATE_DATA_WHERE_POSSIBLE
+				Shift = New Int[64]
+				
+				For Local I:= 0 Until 16 Step 4
+					Shift[I] = 7 ' S1_1
+					Shift[I+1] = Shift[I]+5 ' S1_2
+					Shift[I+2] = Shift[I+1]+5 ' S1_3
+					Shift[I+3] = Shift[I+2]+5 ' S1_4
+				Next
+				
+				For Local I:= 16 Until 32 Step 4
+					Shift[I] = 5 ' S2_1
+					Shift[I+1] = ((Shift[I]+Shift[I])-1) ' S2_2
+					Shift[I+2] = Shift[I+1] + Shift[I] ' S2_3
+					Shift[I+3] = Shift[I+2] + Shift[I] + 1 ' S2_4
+				Next
+				
+				For Local I:= 32 Until 48 Step 4
+					Shift[I] = 4 ' S3_1
+					Shift[I+1] = Shift[I]+7 ' S3_2
+					Shift[I+2] = Shift[I+1]+Shift[I]+1 ' S3_3
+					Shift[I+3] = (Shift[I+2]+(Shift[I]*2)-1) ' S3_4
+				Next
+				
+				For Local I:= 48 Until 64 Step 4
+					Shift[I] = 6 ' S4_1
+					Shift[I+1] = Shift[I]+4 ' S4_2
+					Shift[I+2] = Shift[I+1]+(Shift[I]-1) ' S4_3
+					Shift[I+3] = Shift[I+2]+Shift[I] ' S4_4
+				Next
+			#Else
+				' This is the long version, see below for the simplified version.
+				Shift = [S1_1, S1_2, S1_3, S1_4, S1_1, S1_2, S1_3, S1_4, S1_1, S1_2, S1_3, S1_4, S1_1, S1_2, S1_3, S1_4,
+						S2_1, S2_2, S2_3, S2_4, S2_1, S2_2, S2_3, S2_4, S2_1, S2_2, S2_3, S2_4, S2_1, S2_2, S2_3, S2_4,
+						S3_1, S3_2, S3_3, S3_4, S3_1, S3_2, S3_3, S3_4, S3_1, S3_2, S3_3, S3_4, S3_1, S3_2, S3_3, S3_4,
+						S4_1, S4_2, S4_3, S4_4, S4_1, S4_2, S4_3, S4_4, S4_1, S4_2, S4_3, S4_4, S4_1, S4_2, S4_3, S4_4]
+			#End
+		#Else
+			' This is the simplified version, look above for the long version.
+			Shift = [S1_1, S1_2, S1_3, S1_4, S2_1, S2_2, S2_3, S2_4, S3_1, S3_2, S3_3, S3_4, S4_1, S4_2, S4_3, S4_4]
+		#End
 		
-		For Local I:= 0 Until 16 Step 4
-			Shift[I] = 7
-			Shift[I+1] = Shift[I]+5
-			Shift[I+2] = Shift[I+1]+5
-			Shift[I+3] = Shift[I+2]+5
-		Next
-		
-		For Local I:= 16 Until 32 Step 4
-			Shift[I] = 5
-			Shift[I+1] = ((Shift[I]+Shift[I])-1)
-			Shift[I+2] = Shift[I+1] + Shift[I]
-			Shift[I+3] = Shift[I+2] + Shift[I] + 1
-		Next
-		
-		For Local I:= 32 Until 48 Step 4
-			Shift[I] = 4
-			Shift[I+1] = Shift[I]+7
-			Shift[I+2] = Shift[I+1]+Shift[I]+1
-			Shift[I+3] = (Shift[I+2]+(Shift[I]*2)-1)
-		Next
-		
-		For Local I:= 48 Until 64 Step 4
-			Shift[I] = 6
-			Shift[I+1] = Shift[I]+4
-			Shift[I+2] = Shift[I+1]+(Shift[I]-1)
-			Shift[I+3] = Shift[I+2]+Shift[I]
-		Next
-		
+		' Return the generated array.
 		Return Shift
 	End
 	
 	' Fields:
-	Field Shift:Int[], K:Int[]
+	Field Shift:Int[]
+	Field K:Int[]
 End
 
 Class MD5Component
@@ -289,11 +346,13 @@ Class MD5BufferHasher Extends MD5Engine<DataBuffer> Final
 		Self.ByteFix = ByteFix
 	End
 	
-	Method New(MetaData:MD5Data, ByteFix:Bool=Default_ByteFix, ClearCacheWhenFinished:Bool=Default_ClearCacheWhenFinished)
-		Super.New(MetaData, ClearCacheWhenFinished)
-		
-		Self.ByteFix = ByteFix
-	End
+	#If Not MD5_MANUAL_PROCESSING
+		Method New(MetaData:MD5Data, ByteFix:Bool=Default_ByteFix, ClearCacheWhenFinished:Bool=Default_ClearCacheWhenFinished)
+			Super.New(MetaData, ClearCacheWhenFinished)
+			
+			Self.ByteFix = ByteFix
+		End
+	#End
 	
 	' Methods:
 	Method ExtractData:Int(Message:DataBuffer, Index:Int, Length:Int=AUTO)
@@ -387,13 +446,15 @@ Class MD5StreamHasher Extends MD5Engine<Stream> Final ' This may end up inheriti
 		Self.ByteFix = ByteFix
 	End
 	
-	Method New(MetaData:MD5Data, CacheSize:Int=Default_CacheSize, BulkLoad:Bool=Default_BulkLoad, ClearCacheWhenFinished:Bool=Default_ClearCacheWhenFinished, ByteFix:Bool=Default_ByteFix)
-		Super.New(MetaData, ClearCacheWhenFinished)
-		
-		Self.CacheSize = CacheSize
-		Self.BulkLoad = BulkLoad
-		Self.ByteFix = ByteFix
-	End
+	#If Not MD5_MANUAL_PROCESSING
+		Method New(MetaData:MD5Data, CacheSize:Int=Default_CacheSize, BulkLoad:Bool=Default_BulkLoad, ClearCacheWhenFinished:Bool=Default_ClearCacheWhenFinished, ByteFix:Bool=Default_ByteFix)
+			Super.New(MetaData, ClearCacheWhenFinished)
+			
+			Self.CacheSize = CacheSize
+			Self.BulkLoad = BulkLoad
+			Self.ByteFix = ByteFix
+		End
+	#End
 	
 	' Methods:
 	Method ExtractData:Int(Message:Stream, Index:Int, Length:Int=AUTO)
@@ -476,13 +537,17 @@ Class MD5StreamHasher Extends MD5Engine<Stream> Final ' This may end up inheriti
 			Local BytesToRead:= Min(CacheSize, BytesLeft)
 			
 			#If MD5_STREAM_CACHE_MODE = MD5_STREAM_CACHE_MODE_ARRAY
-				If (BulkLoad) Then
-					GenericUtilities<Int>.CopyStringToArray(Message.ReadString(BytesToRead, Default_CharacterEncoding), Cache)
-				Else
-					For Local I:Int = 0 Until BytesToRead
-						Cache[I] = ExtractByte(Message, Index+I)
-					Next
-				Endif
+				#If UTIL_IMPLEMENTED
+					If (BulkLoad) Then
+						GenericUtilities<Int>.CopyStringToArray(Message.ReadString(BytesToRead, Default_CharacterEncoding), Cache)
+					Else
+				#End
+						For Local I:Int = 0 Until BytesToRead
+							Cache[I] = ExtractByte(Message, Index+I)
+						Next
+				#If UTIL_IMPLEMENTED
+					Endif
+				#End
 			#Elseif MD5_STREAM_CACHE_MODE = MD5_STREAM_CACHE_MODE_BUFFER
 				If (BulkLoad) Then
 					Message.Read(Cache, 0, BytesToRead)
@@ -540,7 +605,9 @@ Class MD5StreamHasher Extends MD5Engine<Stream> Final ' This may end up inheriti
 		#Elseif MD5_STREAM_CACHE_MODE = MD5_STREAM_CACHE_MODE_STRING
 			Cache = ""
 		#Elseif MD5_STREAM_CACHE_MODE = MD5_STREAM_CACHE_MODE_BUFFER
-			Cache.Discard(); Cache = Null
+			If (Cache <> Null) Then
+				Cache.Discard(); Cache = Null
+			Endif
 		#End
 		
 		Return
@@ -604,9 +671,11 @@ Class MD5Hasher<T> Extends MD5Engine<T> Final
 		Super.New(ClearCacheWhenFinished)
 	End
 	
-	Method New(MetaData:MD5Data, ClearCacheWhenFinished:Bool=Default_ClearCacheWhenFinished)
-		Super.New(MetaData, ClearCacheWhenFinished)
-	End
+	#If Not MD5_MANUAL_PROCESSING
+		Method New(MetaData:MD5Data, ClearCacheWhenFinished:Bool=Default_ClearCacheWhenFinished)
+			Super.New(MetaData, ClearCacheWhenFinished)
+		End
+	#End
 	
 	' Methods:
 	Method ExtractData:Int(Message:T, Index:Int, Length:Int=AUTO)
@@ -620,7 +689,8 @@ End
 
 Class MD5Engine<T> Extends MD5Component Abstract
 	' Constant variable(s):
-	Const BLOCK_SIZE:Int = 16
+	Const BLOCK_SIZE:= MD5Data.BLOCK_SIZE
+	Const BLOCK_SCOPE:= MD5Data.BLOCK_SCOPE
 	
 	Const ZERO:Int = 0
 	Const AUTO:= MD5_AUTO
@@ -631,18 +701,63 @@ Class MD5Engine<T> Extends MD5Component Abstract
 	' Booleans / Flags:
 	Const Default_ClearCacheWhenFinished:Bool = False ' True
 	
+	' Functions (Public):
+	
+	' These functions are only used within the main implementation when 'MD5_MANUAL_PROCESSING' is enabled.
+	Function MD5_FF:Int(A:Int, B:Int, C:Int, D:Int, BlockData:Int, ShiftValue:Int, KValue:Int)
+		Return RotateLeft(A + MD5_F(B, C, D) + BlockData + KValue, ShiftValue) + B
+	End
+	
+	Function MD5_GG:Int(A:Int, B:Int, C:Int, D:Int, BlockData:Int, ShiftValue:Int, KValue:Int)
+		Return RotateLeft(A + MD5_G(B, C, D) + BlockData + KValue, ShiftValue) + B
+	End
+	
+	Function MD5_HH:Int(A:Int, B:Int, C:Int, D:Int, BlockData:Int, ShiftValue:Int, KValue:Int)
+		Return RotateLeft(A + MD5_H(B, C, D) + BlockData + KValue, ShiftValue) + B
+	End
+	
+	Function MD5_II:Int(A:Int, B:Int, C:Int, D:Int, BlockData:Int, ShiftValue:Int, KValue:Int)
+		Return RotateLeft(A + MD5_I(B, C, D) + BlockData + KValue, ShiftValue) + B
+	End
+	
+	' Functions (Private):
+	Private
+	
+	Function MD5_F:Int(X:Int, Y:Int, Z:Int)
+		Return ((X & Y) | ((~X) & Z))
+	End
+	
+	Function MD5_G:Int(X:Int, Y:Int, Z:Int)
+		Return ((X & Z) | (Y & (~Z)))
+	End
+	
+	Function MD5_H:Int(X:Int, Y:Int, Z:Int)
+		Return (X ~ Y ~ Z)
+	End
+	
+	Function MD5_I:Int(X:Int, Y:Int, Z:Int)
+		Return (Y ~ (X | (~Z)))
+	End
+	
+	Public
+	
 	' Constructor(s):
 	Method New(ClearCacheWhenFinished:Bool=Default_ClearCacheWhenFinished)
-		Init()
+		#If Not MD5_MANUAL_PROCESSING
+			Init()
+			
+			Self.MetaData = Standard_MD5Data
+		#End
 		
-		Self.MetaData = Standard_MD5Data
 		Self.ClearCacheWhenFinished = ClearCacheWhenFinished
 	End
 	
-	Method New(MetaData:MD5Data, ClearCacheWhenFinished:Bool=Default_ClearCacheWhenFinished)
-		Self.MetaData = MetaData
-		Self.ClearCacheWhenFinished = ClearCacheWhenFinished
-	End
+	#If Not MD5_MANUAL_PROCESSING
+		Method New(MetaData:MD5Data, ClearCacheWhenFinished:Bool=Default_ClearCacheWhenFinished)
+			Self.MetaData = MetaData
+			Self.ClearCacheWhenFinished = ClearCacheWhenFinished
+		End
+	#End
 	
 	' Methods (Public):
 	Method Execute:MD5Hash(Message:T, Length:Int=AUTO, Offset:Int=Default_Offset)
@@ -652,31 +767,35 @@ Class MD5Engine<T> Extends MD5Component Abstract
 		
 		' Local variable(s):
 		Local BlockCount:Int = ((Length + 8) Shr 6) + 1
+		Local BlockID:Int = 0
 		
 		Local A0:Int = $67452301 ' 1732584193
 		Local B0:Int = $efcdab89 ' -271733879
 		Local C0:Int = $98badcfe ' -1732584194
 		Local D0:Int = $10325476 ' 271733878
 		
+		' The "virtual" size of the block cache/array. (Used for data transformation)
 		Local VirtualBlockArraySize:= (BlockCount * BLOCK_SIZE)
-		Local BlockCalculationScope:= (BLOCK_SIZE Shl 2)
+		Local FinalBlockPosition:= (VirtualBlockArraySize - BLOCK_SIZE)
 		
 		For Local BlockIndex:= 0 Until VirtualBlockArraySize Step BLOCK_SIZE
-			Local BlockID:Int = 0
-			
+			' Calculate the current block-ID:
 			If (BlockIndex > 0) Then
 				BlockID = (BlockIndex/BLOCK_SIZE)
 			Endif
 			
-			Block = ZeroBlock(Block)
+			' Clear the current block.
+			'Block = ZeroBlock(Block)
+			ZeroBlock(Block)
 			
-			For Local I:= BlockCalculationScope*BlockID Until Min(BlockCalculationScope*(BlockID+1), Length)
+			' Copy the data from the message into the block's cache (In shifted/encoded form):
+			For Local I:= BLOCK_SCOPE*BlockID Until Min(BLOCK_SCOPE*(BlockID+1), Length)
 				'(I+Offset) Mod Length
 				Block[((I Shr 2) Mod BLOCK_SIZE)] |= (CorrectByte(ExtractData(Message, (I+Offset), Length)) Shl ((I Mod 4) * 8))
 			Next
 			
-			If (BlockIndex = VirtualBlockArraySize - (BLOCK_SIZE)) Then
-				Block[(Length Shr 2) Mod BLOCK_SIZE] |= (128 Shl ((Length Mod 4) * 8))
+			If (BlockIndex = FinalBlockPosition) Then
+				Block[(Length Shr 2) Mod BLOCK_SIZE] |= (128 Shl ((Length Mod 4) * 8)) ' ((BLOCK_SCOPE*2) Shl ...)
 				Block[(VirtualBlockArraySize - 2) Mod BLOCK_SIZE] = Length * 8
 			Endif
 			
@@ -686,43 +805,148 @@ Class MD5Engine<T> Extends MD5Component Abstract
 			Local C:= C0
 			Local D:= D0
 			
-			Local F:Int
-			Local G:Int
-			
-			For Local I:= 0 Until 64
-				If (I < 16) Then
-					'F = (B & C) | ((~B) & D)
-					'G = I
-					
-					F = D ~ (B & (C ~ D))
-					G = I
-				Elseif (I < 32) Then
-					'F = (D & B) | ((~D) & C)
-					'G = (5*I + 1) Mod 16
-					
-					F = C ~ (D & (B ~ C))
-					G = (5 * I + 1) Mod 16
-				Elseif (I < 48) Then
-					'F = B ~ C ~ D
-					'G = (3*I + 5) Mod 16
-					
-					F = B ~ C ~ D
-					G = (3 * I + 5) Mod 16
-				Elseif (I < 64) Then
-					'F = C ~ (B | (~D))
-					'G = (7*I) Mod 16
-					
-					F = C ~ (B | (~D))
-					G = (7 * I) Mod 16
-				Endif
+			#If MD5_MANUAL_PROCESSING
+				' First round:
+				A = MD5_FF(A, B, C, D, Block[0], MD5Data.S1_1, $d76aa478)
+				D = MD5_FF(D, A, B, C, Block[1], MD5Data.S1_2, $e8c7b756)
+				C = MD5_FF(C, D, A, B, Block[2], MD5Data.S1_3, $242070db)
+				B = MD5_FF(B, C, D, A, Block[3], MD5Data.S1_4, $c1bdceee)
 				
-				Local TempD:= D
+				A = MD5_FF(A, B, C, D, Block[4], MD5Data.S1_1, $f57c0faf)
+				D = MD5_FF(D, A, B, C, Block[5], MD5Data.S1_2, $4787c62a)
+				C = MD5_FF(C, D, A, B, Block[6], MD5Data.S1_3, $a8304613)
+				B = MD5_FF(B, C, D, A, Block[7], MD5Data.S1_4, $fd469501)
 				
-				D = C
-				C = B
-				B += RotateLeft(A + F + MetaData.K[I] + Block[G Mod BLOCK_SIZE], MetaData.Shift[I])
-				A = TempD
-			Next
+				A = MD5_FF(A, B, C, D, Block[8], MD5Data.S1_1, $698098d8)
+				D = MD5_FF(D, A, B, C, Block[9], MD5Data.S1_2, $8b44f7af)
+				C = MD5_FF(C, D, A, B, Block[10], MD5Data.S1_3, $ffff5bb1)
+				B = MD5_FF(B, C, D, A, Block[11], MD5Data.S1_4, $895cd7be)
+				
+				A = MD5_FF(A, B, C, D, Block[12], MD5Data.S1_1, $6b901122)
+				D = MD5_FF(D, A, B, C, Block[13], MD5Data.S1_2, $fd987193)
+				C = MD5_FF(C, D, A, B, Block[14], MD5Data.S1_3, $a679438e)
+				B = MD5_FF(B, C, D, A, Block[15], MD5Data.S1_4, $49b40821)
+				
+				' Second round:
+				A = MD5_GG(A, B, C, D, Block[1], MD5Data.S2_1, $f61e2562)
+				D = MD5_GG(D, A, B, C, Block[6], MD5Data.S2_2, $c040b340)
+				C = MD5_GG(C, D, A, B, Block[11], MD5Data.S2_3, $265e5a51)
+				B = MD5_GG(B, C, D, A, Block[0], MD5Data.S2_4, $e9b6c7aa)
+				
+				A = MD5_GG(A, B, C, D, Block[5], MD5Data.S2_1, $d62f105d)
+				D = MD5_GG(D, A, B, C, Block[10], MD5Data.S2_2, $02441453)
+				C = MD5_GG(C, D, A, B, Block[15], MD5Data.S2_3, $d8a1e681)
+				B = MD5_GG(B, C, D, A, Block[4], MD5Data.S2_4, $e7d3fbc8)
+				
+				A = MD5_GG(A, B, C, D, Block[9], MD5Data.S2_1, $21e1cde6)
+				D = MD5_GG(D, A, B, C, Block[14], MD5Data.S2_2, $c33707d6)
+				C = MD5_GG(C, D, A, B, Block[3], MD5Data.S2_3, $f4d50d87)
+				B = MD5_GG(B, C, D, A, Block[8], MD5Data.S2_4, $455a14ed)
+				
+				A = MD5_GG(A, B, C, D, Block[13], MD5Data.S2_1, $a9e3e905)
+				D = MD5_GG(D, A, B, C, Block[2], MD5Data.S2_2, $fcefa3f8)
+				C = MD5_GG(C, D, A, B, Block[7], MD5Data.S2_3, $676f02d9)
+				B = MD5_GG(B, C, D, A, Block[12], MD5Data.S2_4, $8d2a4c8a)
+				
+				' Third round:
+				A = MD5_HH(A, B, C, D, Block[5], MD5Data.S3_1, $fffa3942)
+				D = MD5_HH(D, A, B, C, Block[8], MD5Data.S3_2, $8771f681)
+				C = MD5_HH(C, D, A, B, Block[11], MD5Data.S3_3, $6d9d6122)
+				B = MD5_HH(B, C, D, A, Block[14], MD5Data.S3_4, $fde5380c)
+				
+				A = MD5_HH(A, B, C, D, Block[1], MD5Data.S3_1, $a4beea44)
+				D = MD5_HH(D, A, B, C, Block[4], MD5Data.S3_2, $4bdecfa9)
+				C = MD5_HH(C, D, A, B, Block[7], MD5Data.S3_3, $f6bb4b60)
+				B = MD5_HH(B, C, D, A, Block[10], MD5Data.S3_4, $bebfbc70)
+				
+				A = MD5_HH(A, B, C, D, Block[13], MD5Data.S3_1, $289b7ec6)
+				D = MD5_HH(D, A, B, C, Block[0], MD5Data.S3_2, $eaa127fa)
+				C = MD5_HH(C, D, A, B, Block[3], MD5Data.S3_3, $d4ef3085)
+				B = MD5_HH(B, C, D, A, Block[6], MD5Data.S3_4, $04881d05)
+				
+				A = MD5_HH(A, B, C, D, Block[9], MD5Data.S3_1, $d9d4d039)
+				D = MD5_HH(D, A, B, C, Block[12], MD5Data.S3_2, $e6db99e5)
+				C = MD5_HH(C, D, A, B, Block[15], MD5Data.S3_3, $1fa27cf8)
+				B = MD5_HH(B, C, D, A, Block[2], MD5Data.S3_4, $c4ac5665)
+				
+				' Fourth / Final round:
+				A = MD5_II(A, B, C, D, Block[0], MD5Data.S4_1, $f4292244)
+				D = MD5_II(D, A, B, C, Block[7], MD5Data.S4_2, $432aff97)
+				C = MD5_II(C, D, A, B, Block[14], MD5Data.S4_3, $ab9423a7)
+				B = MD5_II(B, C, D, A, Block[5], MD5Data.S4_4, $fc93a039)
+				
+				A = MD5_II(A, B, C, D, Block[12], MD5Data.S4_1, $655b59c3)
+				D = MD5_II(D, A, B, C, Block[3], MD5Data.S4_2, $8f0ccc92)
+				C = MD5_II(C, D, A, B, Block[10], MD5Data.S4_3, $ffeff47d)
+				B = MD5_II(B, C, D, A, Block[1], MD5Data.S4_4, $85845dd1)
+				
+				A = MD5_II(A, B, C, D, Block[8], MD5Data.S4_1, $6fa87e4f)
+				D = MD5_II(D, A, B, C, Block[15], MD5Data.S4_2, $fe2ce6e0)
+				C = MD5_II(C, D, A, B, Block[6], MD5Data.S4_3, $a3014314)
+				B = MD5_II(B, C, D, A, Block[13], MD5Data.S4_4, $4e0811a1)
+				
+				A = MD5_II(A, B, C, D, Block[4], MD5Data.S4_1, $f7537e82)
+				D = MD5_II(D, A, B, C, Block[11], MD5Data.S4_2, $bd3af235)
+				C = MD5_II(C, D, A, B, Block[2], MD5Data.S4_3, $2ad7d2bb)
+				B = MD5_II(B, C, D, A, Block[9], MD5Data.S4_4, $eb86d391)
+			#Else
+				#If Not MD5_ALTERNATE_SHIFT
+					Local F:Int
+					Local G:Int
+				#End
+				
+				For Local I:= 0 Until 64
+					#If Not MD5_ALTERNATE_SHIFT
+						If (I < 16) Then
+							'F = (B & C) | ((~B) & D)
+							'G = I Mod BLOCK_SIZE
+							
+							F = D ~ (B & (C ~ D))
+							G = I Mod BLOCK_SIZE
+						Elseif (I < 32) Then
+							'F = (D & B) | ((~D) & C)
+							'G = (5*I + 1) Mod BLOCK_SIZE
+							
+							F = C ~ (D & (B ~ C))
+							G = (5 * I + 1) Mod BLOCK_SIZE
+						Elseif (I < 48) Then
+							'F = B ~ C ~ D
+							'G = (3*I + 5) Mod BLOCK_SIZE
+							
+							F = B ~ C ~ D
+							G = (3 * I + 5) Mod BLOCK_SIZE
+						ElseIf (I < 64) Then
+							'F = C ~ (B | (~D))
+							'G = (7*I) Mod BLOCK_SIZE
+							
+							F = C ~ (B | (~D))
+							G = (7 * I) Mod BLOCK_SIZE
+						Endif
+					#End
+					
+					Local E:= D
+					
+					D = C
+					C = B
+					
+					#If MD5_ALTERNATE_SHIFT
+						If (I < 16) Then
+							' (D ~ (E & (C ~ D)))
+							B += RotateLeft(A + (E ~ (C & (D ~ E))) + MetaData.K[I] + Block[I Mod BLOCK_SIZE], MetaData.Shift[I Mod 4])
+						Elseif (I < 32) Then
+							B += RotateLeft(A + (D ~ (E & (C ~ D))) + MetaData.K[I] + Block[(5 * I + 1) Mod BLOCK_SIZE], MetaData.Shift[(I Mod 4) + 4])
+						Elseif (I < 48) Then
+							B += RotateLeft(A + (C ~ D ~ E) + MetaData.K[I] + Block[(3 * I + 5) Mod BLOCK_SIZE], MetaData.Shift[(I Mod 4) + 8])
+						Else ' If (I < 64) Then
+							B += RotateLeft(A + (D ~ (C | (~E))) + MetaData.K[I] + Block[(7 * I) Mod BLOCK_SIZE], MetaData.Shift[(I Mod 4) + 12])
+						Endif
+					#Else
+						B += RotateLeft(A + F + MetaData.K[I] + Block[G], MetaData.Shift[I])
+					#End
+					
+					A = E
+				Next
+			#End
 			
 			A0 += A
 			B0 += B
@@ -774,7 +998,9 @@ Class MD5Engine<T> Extends MD5Component Abstract
 	' Fields:
 	
 	' Most MD5 related meta-data needed for execution.
-	Field MetaData:MD5Data
+	#If Not MD5_MANUAL_PROCESSING
+		Field MetaData:MD5Data
+	#End
 	
 	' An array cached per-hasher, which is used for block calculations upon execution.
 	Field Block:Int[BLOCK_SIZE]
