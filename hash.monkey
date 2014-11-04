@@ -44,10 +44,17 @@ Public
 #MD5_STREAM_CACHE_MODE_STRING		= 1
 #MD5_STREAM_CACHE_MODE_BUFFER		= 2
 
+' These mode-comments are ordered from highest to lowest performance (Not memory consumption):
 #If TARGET = "android"
 	#MD5_STREAM_CACHE_MODE = MD5_STREAM_CACHE_MODE_ARRAY ' MD5_STREAM_CACHE_MODE_STRING ' MD5_STREAM_CACHE_MODE_BUFFER
 #Else
-	#MD5_STREAM_CACHE_MODE = MD5_STREAM_CACHE_MODE_BUFFER ' MD5_STREAM_CACHE_MODE_STRING ' MD5_STREAM_CACHE_MODE_ARRAY
+	#If TARGET = "xna"
+		#MD5_STREAM_CACHE_MODE = MD5_STREAM_CACHE_MODE_STRING ' MD5_STREAM_CACHE_MODE_ARRAY ' MD5_STREAM_CACHE_MODE_BUFFER
+	#Elseif TARGET = "html5"
+		#MD5_STREAM_CACHE_MODE = MD5_STREAM_CACHE_MODE_STRING ' MD5_STREAM_CACHE_MODE_BUFFER ' MD5_STREAM_CACHE_MODE_ARRAY
+	#Else
+		#MD5_STREAM_CACHE_MODE = MD5_STREAM_CACHE_MODE_BUFFER ' MD5_STREAM_CACHE_MODE_ARRAY ' MD5_STREAM_CACHE_MODE_STRING
+	#End
 #End
 
 ' If this is enabled, less memory will be used, but performance will be slightly worse.
@@ -66,7 +73,14 @@ Public
 #End
 
 #MD5_MANUAL_PROCESSING = True ' False
-#MD5_ALLOW_SLOW_BULKLOADING = False ' True
+
+' If this is disabled, some areas where bulk-loading would normally occur will instead use other methods for data-retrieval.
+' If enabled, functionality will be consistent no matter the situation, even if the choices made are slower.
+#MD5_STREAM_ALLOW_SLOW_BULK_LOADING = False ' True
+
+#If TARGET <> "xna"
+	#MD5_STREAM_ALLOW_DEFAULT_CACHESIZE = True
+#End
 
 ' Imports (External):
 #If UTIL_IMPLEMENTED
@@ -408,7 +422,10 @@ Class MD5StreamHasher Extends MD5Engine<Stream> Final ' This may end up inheriti
 	' Constant variable(s):
 	
 	' Defaults:
+	'#If MD5_STREAM_ALLOW_DEFAULT_CACHESIZE
 	Const Default_CacheSize:Int = AUTO ' 2048
+	'#End
+	
 	Const Default_CharacterEncoding:String = "ascii"
 	
 	' Booleans / Flags:
@@ -423,16 +440,16 @@ Class MD5StreamHasher Extends MD5Engine<Stream> Final ' This may end up inheriti
 	
 	#If MD5_STREAM_CACHE_MODE = MD5_STREAM_CACHE_MODE_STRING
 		Global MAX_AUTO_CACHE_SIZE:Int = 40*1024*1024 ' 4*1024*1024
-		Global AUTO_CACHE_DIVISOR:Int = 16
+		Global AUTO_CACHE_DIVISOR:Int = 16 ' 8
 		Global MIN_AUTO_CACHE_SIZE:Int = 8*1024*1024 ' 8*1024
 	#Elseif MD5_STREAM_CACHE_MODE = MD5_STREAM_CACHE_MODE_BUFFER
 		Global MAX_AUTO_CACHE_SIZE:Int = 40*1024*1024
-		Global AUTO_CACHE_DIVISOR:Int = 8 ' 16
+		Global AUTO_CACHE_DIVISOR:Int = 8 ' 16 ' 4
 		Global MIN_AUTO_CACHE_SIZE:Int = 8*1024*1024 ' 8*1024
 	#Else
-		Global MAX_AUTO_CACHE_SIZE:Int = 1*1024 ' 1*1024*1024
-		Global AUTO_CACHE_DIVISOR:Int = 16
-		Global MIN_AUTO_CACHE_SIZE:Int = 1*1024 ' 8*1024
+		Global MAX_AUTO_CACHE_SIZE:Int = 40*1024*1024 ' 1*1024*1024
+		Global AUTO_CACHE_DIVISOR:Int = 8 ' 16 ' 4
+		Global MIN_AUTO_CACHE_SIZE:Int = 8*1024*1024 ' 8*1024
 	#End
 	
 	Global AUTO_CACHE_MAX_SIZE_ENABLED:Bool = True
@@ -544,11 +561,15 @@ Class MD5StreamHasher Extends MD5Engine<Stream> Final ' This may end up inheriti
 				Endif
 				
 				#If MD5_STREAM_CACHE_MODE = MD5_STREAM_CACHE_MODE_ARRAY
-					If (CacheSize <= 0 And Default_CacheSize > 0) Then
-						Cache = New Int[Default_CacheSize]
-					Else
-						Cache = New Int[CacheSize]
-					Endif
+					#If MD5_STREAM_ALLOW_DEFAULT_CACHESIZE
+						If (Default_CacheSize > 0 And Default_CacheSize <> AUTO And CacheSize <= 0) Then
+							Cache = New Int[Default_CacheSize]
+						Else
+					#End
+							Cache = New Int[CacheSize]
+					#If MD5_STREAM_ALLOW_DEFAULT_CACHESIZE
+						Endif
+					#End
 				#Elseif MD5_STREAM_CACHE_MODE = MD5_STREAM_CACHE_MODE_BUFFER
 					If (Cache <> Null) Then
 						Cache.Discard()
@@ -571,7 +592,7 @@ Class MD5StreamHasher Extends MD5Engine<Stream> Final ' This may end up inheriti
 			Local BytesToRead:= Min(CacheSize, BytesLeft)
 			
 			#If MD5_STREAM_CACHE_MODE = MD5_STREAM_CACHE_MODE_ARRAY
-				#If MD5_ALLOW_SLOW_BULKLOADING And UTIL_IMPLEMENTED
+				#If MD5_STREAM_ALLOW_SLOW_BULK_LOADING And UTIL_IMPLEMENTED
 					If (BulkLoad) Then
 						GenericUtilities<Int>.CopyStringToArray(Message.ReadString(BytesToRead, Default_CharacterEncoding), Cache)
 					Else
@@ -579,7 +600,7 @@ Class MD5StreamHasher Extends MD5Engine<Stream> Final ' This may end up inheriti
 						For Local I:Int = 0 Until BytesToRead
 							Cache[I] = ExtractByte(Message, Index+I)
 						Next
-				#If MD5_ALLOW_SLOW_BULKLOADING And UTIL_IMPLEMENTED
+				#If MD5_STREAM_ALLOW_SLOW_BULK_LOADING And UTIL_IMPLEMENTED
 					Endif
 				#End
 			#Elseif MD5_STREAM_CACHE_MODE = MD5_STREAM_CACHE_MODE_BUFFER
