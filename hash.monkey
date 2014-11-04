@@ -45,9 +45,9 @@ Public
 #MD5_STREAM_CACHE_MODE_BUFFER		= 2
 
 #If TARGET = "android"
-	#MD5_STREAM_CACHE_MODE = MD5_STREAM_CACHE_MODE_ARRAY ' MD5_STREAM_CACHE_MODE_STRING
+	#MD5_STREAM_CACHE_MODE = MD5_STREAM_CACHE_MODE_ARRAY ' MD5_STREAM_CACHE_MODE_STRING ' MD5_STREAM_CACHE_MODE_BUFFER
 #Else
-	#MD5_STREAM_CACHE_MODE = MD5_STREAM_CACHE_MODE_BUFFER ' MD5_STREAM_CACHE_MODE_ARRAY
+	#MD5_STREAM_CACHE_MODE = MD5_STREAM_CACHE_MODE_BUFFER ' MD5_STREAM_CACHE_MODE_STRING ' MD5_STREAM_CACHE_MODE_ARRAY
 #End
 
 ' If this is enabled, less memory will be used, but performance will be slightly worse.
@@ -65,7 +65,8 @@ Public
 	ATTENTION: The 'Standard_MD5Data' object will be unavailable if this is enabled. The 'MD5Data' class is still present, however.
 #End
 
-#MD5_MANUAL_PROCESSING = False ' True
+#MD5_MANUAL_PROCESSING = True ' False
+#MD5_ALLOW_SLOW_BULKLOADING = False ' True
 
 ' Imports (External):
 #If UTIL_IMPLEMENTED
@@ -103,20 +104,40 @@ Alias MD5Hash = Hash
 ' Functions (Public):
 
 ' Quick wrappers for the standard classes' 'Run' commands:
-Function MD5:MD5Hash(Data:DataBuffer, Length:Int=MD5_AUTO, Offset:Int=0)
+Function MD5:MD5Hash(Data:DataBuffer, Length:Int, Offset:Int=MD5BufferHasher.Default_Offset)
 	Return MD5BufferHasher.Run(Data, Length, Offset)
 End
 
-Function MD5:MD5Hash(S:Stream, Length:Int=MD5_AUTO, Offset:Int=0)
+Function MD5:MD5Hash(Data:DataBuffer)
+	Return MD5BufferHasher.Run(Data)
+End
+
+Function MD5:MD5Hash(S:Stream, Length:Int, Offset:Int)
 	Return MD5StreamHasher.Run(S, Length, Offset)
 End
 
-Function MD5:MD5Hash(IA:Int[], Length:Int=MD5_AUTO, Offset:Int=0)
+Function MD5:MD5Hash(S:Stream, Length:Int)
+	Return MD5StreamHasher.Run(S, Length)
+End
+
+Function MD5:MD5Hash(S:Stream)
+	Return MD5StreamHasher.Run(S)
+End
+
+Function MD5:MD5Hash(IA:Int[], Length:Int, Offset:Int=MD5Hasher<Int[]>.Default_Offset)
 	Return MD5Hasher<Int[]>.Run(IA, Length, Offset)
 End
 
-Function MD5:MD5Hash(Str:String, Length:Int=MD5_AUTO, Offset:Int=0)
+Function MD5:MD5Hash(IA:Int[])
+	Return MD5Hasher<Int[]>.Run(IA)
+End
+
+Function MD5:MD5Hash(Str:String, Length:Int, Offset:Int=MD5Hasher<String>.Default_Offset)
 	Return MD5Hasher<String>.Run(Str, Length, Offset)
+End
+
+Function MD5:MD5Hash(Str:String)
+	Return MD5Hasher<String>.Run(Str)
 End
 
 ' This is effectively just a really quick rewrite of Java's 'hashCode' method:
@@ -335,7 +356,11 @@ Class MD5BufferHasher Extends MD5Engine<DataBuffer> Final
 		Return _Instance
 	End
 	
-	Function Run:MD5Hash(Data:DataBuffer, Length:Int=AUTO, Offset:Int=Default_Offset)
+	Function Run:MD5Hash(Data:DataBuffer)
+		Return Instance().Execute(Data)
+	End
+	
+	Function Run:MD5Hash(Data:DataBuffer, Length:Int, Offset:Int=Default_Offset)
 		Return Instance().Execute(Data, Length, Offset)
 	End
 	
@@ -399,15 +424,16 @@ Class MD5StreamHasher Extends MD5Engine<Stream> Final ' This may end up inheriti
 	#If MD5_STREAM_CACHE_MODE = MD5_STREAM_CACHE_MODE_STRING
 		Global MAX_AUTO_CACHE_SIZE:Int = 40*1024*1024 ' 4*1024*1024
 		Global AUTO_CACHE_DIVISOR:Int = 16
+		Global MIN_AUTO_CACHE_SIZE:Int = 8*1024*1024 ' 8*1024
 	#Elseif MD5_STREAM_CACHE_MODE = MD5_STREAM_CACHE_MODE_BUFFER
 		Global MAX_AUTO_CACHE_SIZE:Int = 40*1024*1024
 		Global AUTO_CACHE_DIVISOR:Int = 8 ' 16
+		Global MIN_AUTO_CACHE_SIZE:Int = 8*1024*1024 ' 8*1024
 	#Else
-		Global MAX_AUTO_CACHE_SIZE:Int = 40*1024*1024 ' 1*1024*1024
+		Global MAX_AUTO_CACHE_SIZE:Int = 1*1024 ' 1*1024*1024
 		Global AUTO_CACHE_DIVISOR:Int = 16
+		Global MIN_AUTO_CACHE_SIZE:Int = 1*1024 ' 8*1024
 	#End
-	
-	Global MIN_AUTO_CACHE_SIZE:Int = 8*1024*1024 ' 8*1024
 	
 	Global AUTO_CACHE_MAX_SIZE_ENABLED:Bool = True
 	Global AUTO_CACHE_MIN_SIZE_ENABLED:Bool = True
@@ -433,7 +459,15 @@ Class MD5StreamHasher Extends MD5Engine<Stream> Final ' This may end up inheriti
 		Return _Instance
 	End
 	
-	Function Run:MD5Hash(Data:Stream, Length:Int=AUTO, Offset:Int=Default_Offset)
+	Function Run:MD5Hash(Data:Stream)
+		Return Instance().Execute(Data)
+	End
+	
+	Function Run:MD5Hash(Data:Stream, Length:Int)
+		Return Instance().Execute(Data, Length)
+	End
+	
+	Function Run:MD5Hash(Data:Stream, Length:Int, Offset:Int)
 		Return Instance().Execute(Data, Length, Offset)
 	End
 	
@@ -537,7 +571,7 @@ Class MD5StreamHasher Extends MD5Engine<Stream> Final ' This may end up inheriti
 			Local BytesToRead:= Min(CacheSize, BytesLeft)
 			
 			#If MD5_STREAM_CACHE_MODE = MD5_STREAM_CACHE_MODE_ARRAY
-				#If UTIL_IMPLEMENTED
+				#If MD5_ALLOW_SLOW_BULKLOADING And UTIL_IMPLEMENTED
 					If (BulkLoad) Then
 						GenericUtilities<Int>.CopyStringToArray(Message.ReadString(BytesToRead, Default_CharacterEncoding), Cache)
 					Else
@@ -545,7 +579,7 @@ Class MD5StreamHasher Extends MD5Engine<Stream> Final ' This may end up inheriti
 						For Local I:Int = 0 Until BytesToRead
 							Cache[I] = ExtractByte(Message, Index+I)
 						Next
-				#If UTIL_IMPLEMENTED
+				#If MD5_ALLOW_SLOW_BULKLOADING And UTIL_IMPLEMENTED
 					Endif
 				#End
 			#Elseif MD5_STREAM_CACHE_MODE = MD5_STREAM_CACHE_MODE_BUFFER
@@ -585,6 +619,10 @@ Class MD5StreamHasher Extends MD5Engine<Stream> Final ' This may end up inheriti
 		#End
 	End
 	
+	Method RetrieveOffset:Int(Message:T)
+		Return Message.Position
+	End
+	
 	Method RetrieveLength:Int(Message:Stream)
 		Return Message.Length() ' AUTO
 	End
@@ -600,15 +638,20 @@ Class MD5StreamHasher Extends MD5Engine<Stream> Final ' This may end up inheriti
 	End
 	
 	Method DiscardCache:Void()
-		#If MD5_STREAM_CACHE_MODE = MD5_STREAM_CACHE_MODE_ARRAY
-			Cache = []
-		#Elseif MD5_STREAM_CACHE_MODE = MD5_STREAM_CACHE_MODE_STRING
-			Cache = ""
-		#Elseif MD5_STREAM_CACHE_MODE = MD5_STREAM_CACHE_MODE_BUFFER
-			If (Cache <> Null) Then
-				Cache.Discard(); Cache = Null
-			Endif
-		#End
+		If (ClearCacheWhenFinished) Then
+			#If MD5_STREAM_CACHE_MODE = MD5_STREAM_CACHE_MODE_ARRAY
+				Cache = []
+			#Elseif MD5_STREAM_CACHE_MODE = MD5_STREAM_CACHE_MODE_STRING
+				Cache = ""
+			#Elseif MD5_STREAM_CACHE_MODE = MD5_STREAM_CACHE_MODE_BUFFER
+				If (Cache <> Null) Then
+					Cache.Discard(); Cache = Null
+				Endif
+			#End
+		Endif
+		
+		CacheSize = 0
+		CachePosition = 0
 		
 		Return
 	End
@@ -662,7 +705,11 @@ Class MD5Hasher<T> Extends MD5Engine<T> Final
 		Return _Instance
 	End
 	
-	Function Run:MD5Hash(Data:T, Length:Int=AUTO, Offset:Int=Default_Offset)
+	Function Run:MD5Hash(Data:T)
+		Return Instance().Execute(Data)
+	End
+	
+	Function Run:MD5Hash(Data:T, Length:Int, Offset:Int=Default_Offset)
 		Return Instance().Execute(Data, Length, Offset)
 	End
 	
@@ -696,7 +743,7 @@ Class MD5Engine<T> Extends MD5Component Abstract
 	Const AUTO:= MD5_AUTO
 	
 	' Defaults:
-	Const Default_Offset:Int = 0
+	Const Default_Offset:= 0
 	
 	' Booleans / Flags:
 	Const Default_ClearCacheWhenFinished:Bool = False ' True
@@ -760,11 +807,15 @@ Class MD5Engine<T> Extends MD5Component Abstract
 	#End
 	
 	' Methods (Public):
-	Method Execute:MD5Hash(Message:T, Length:Int=AUTO, Offset:Int=Default_Offset)
-		If (Length = AUTO) Then
-			Length = RetrieveLength(Message)
-		Endif
-		
+	Method Execute:MD5Hash(Message:T)
+		Return Execute(Message, RetrieveLength(Message), RetrieveOffset(Message))
+	End
+	
+	Method Execute:MD5Hash(Message:T, Length:Int)
+		Return Execute(Message, Length, RetrieveOffset(Message))
+	End
+	
+	Method Execute:MD5Hash(Message:T, Length:Int, Offset:Int)
 		' Local variable(s):
 		Local BlockCount:Int = ((Length + 8) Shr 6) + 1
 		Local BlockID:Int = 0
@@ -954,9 +1005,7 @@ Class MD5Engine<T> Extends MD5Component Abstract
 			D0 += D
 		Next
 		
-		If (ClearCacheWhenFinished) Then
-			DiscardCache()
-		Endif
+		DiscardCache()
 		
 		Return IntToHex((A0)) + IntToHex((B0)) + IntToHex((C0)) + IntToHex((D0))
 	End
@@ -975,6 +1024,10 @@ Class MD5Engine<T> Extends MD5Component Abstract
 		#End
 		
 		Return Block
+	End
+	
+	Method RetrieveOffset:Int(Message:T)
+		Return Default_Offset
 	End
 	
 	' Purely virtual methods:
