@@ -14,7 +14,7 @@ Public
 
 ' Imports (Native):
 #If HASH_EXTERNAL_SHIFTING
-	#If LANG = "cpp"
+	#If LANG = "cpp" Or LANG = "java"
 		' All of the C++ targets SHOULD support this.
 		Import "native/hash.${LANG}"
 	#Else

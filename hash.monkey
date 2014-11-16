@@ -40,6 +40,18 @@ Strict
 Public
 
 ' Preprocessor related:
+
+' By enabling this, you allow this module to use optimization strategies inside and outside of Monkey.
+' Please take caution when using this functionality. Very few targets are supported to begin with.
+#HASH_EXPERIMENTAL = False
+
+#If HASH_EXPERIMENTAL
+	' With this enabled some targets (Mainly STDCPP / C++ Tool) could see performance improvements for some of these algorithms.
+	' This is only enabled when the 'HASH_EXPERIMENTAL' preprocessor-variable is set to 'True'.
+	' See the "Compiler configuration" section for details.
+	#HASH_USE_SIMD_WHEN_AVAILABLE = True
+#End
+
 #MD5_STREAM_CACHE_MODE_ARRAY		= 0
 #MD5_STREAM_CACHE_MODE_STRING		= 1
 #MD5_STREAM_CACHE_MODE_BUFFER		= 2
@@ -72,7 +84,12 @@ Public
 	ATTENTION: The 'Standard_MD5Data' object will be unavailable if this is enabled. The 'MD5Data' class is still present, however.
 #End
 
-#MD5_MANUAL_PROCESSING = True ' False
+#If HASH_EXPERIMENTAL
+	#MD5_MANUAL_PROCESSING = True
+#Else
+	' For now, this is enabled without experimental-confirmation. (This may change in the future)
+	#MD5_MANUAL_PROCESSING = True ' False
+#End
 
 ' If this is disabled, some areas where bulk-loading would normally occur will instead use other methods for data-retrieval.
 ' If enabled, functionality will be consistent no matter the situation, even if the choices made are slower.
@@ -80,6 +97,149 @@ Public
 
 #If TARGET <> "xna"
 	#MD5_STREAM_ALLOW_DEFAULT_CACHESIZE = True
+#End
+
+' Compiler configuration:
+#Rem
+	ATTENTION:
+		THE FOLLOWING NOTES WERE WRITTEN IN NOVEMBER OF 2014,
+		AND MAY NOT DIRECCTLY REFLECT THE CURRENT STATUS OF THESE EXTENSIONS IN THE COMING YEARS:
+		
+		-- EXPLICIT SIMD AND/OR SSE FUNCTIONALITY IS CURRENTLY ONLY AVAILABLE FOR GCC-BASED COMPILERS (This includes MinGW) --
+		
+		THE FOLLOWING OPTIMIZATION OPTIONS ARE MAINLY FOR X86/X64 PROCESSORS,
+		AND SHOULD BE USED WITH CAUTION AND UNDERSTANDING OF YOUR TARGETED HARDWARE.
+		
+		THESE OPTIONS ARE BETTER MANAGED BY GCC/MINGW WHEN TARGETING 64-bit PROCESSORS.
+		THESE OPTIONS ARE MAINLY FOR TESTING, BENCHMARKING, AND EXPERIMENTAL FUNCTIONALITY.
+		
+		DO NOT CONFIGURE THESE SETTINGS WITHOUT FULL UNDERSTANDING OF THE HARDWARE YOU WISH TO TARGET.
+		
+		All SIMD and/or SSE options within this module should
+		only be used by those who feel they need them.
+		
+		These compiler-flags will be added to the entire project if they are enabled here.
+		By enabling these, you effectively leave everything up to your compiler (GCC/MINGW in this case)
+		not all versions of GCC support all of these flags, nor should they all be used as of yet.
+		
+		Unless you are completely aware of the available hardware, do not use these options.
+		In the case of modern x86/x64 processors, you could probably get away with SSE and SSE2, but take caution.
+		
+		From what I hear, 64-bit/x64 versions of GCC and MINGW handle these features much better, and may not need explicit intervention.
+		
+		Please read up about which processors support which versions of SSE.
+		Some notes were made below to help your choices if you wish to enable SSE or AVX.
+#End
+
+#If HASH_USE_SIMD_WHEN_AVAILABLE
+	#If LANG = "cpp"
+		'#HASH_CPP_NEWEST_SIMD_INSTRUCTIONS = False
+		
+		' In the event SIMD instructions are enabled, this will use a preset option.
+		#HASH_CPP_AVERAGE_SIMD_INSTRUCTIONS = True
+		'#HASH_CPP_HIGHEND_SIMD_INSTRUCTIONS = True
+		
+		#If HASH_CPP_AVERAGE_SIMD_INSTRUCTIONS Or HASH_CPP_HIGHEND_SIMD_INSTRUCTIONS
+			' The current default for this feature is SSE2:
+			#HASH_CPP_SSE = True
+			#HASH_CPP_SSE_2 = True
+		#End
+		
+		#If HASH_CPP_HIGHEND_SIMD_INSTRUCTIONS
+			#HASH_CPP_SSE_3 = True
+			#HASH_CPP_SSE_4 = True
+			'#HASH_CPP_SSE_4_1 = True
+			'#HASH_CPP_SSE_4_2 = True
+		#End
+		
+		#If HASH_CPP_NEWEST_SIMD_INSTRUCTIONS
+			#HASH_CPP_AVX = True
+			'#HASH_CPP_AVX_2 = True
+		#End
+	#End
+	
+	' THE FOLLOWING PREPROCESSOR-CODE ONLY APPLIES TO GCC/MINGW BASED TARGETS:
+	
+	' Chances are, this won't have any effect with GLFW, but the check's here anyway.
+	#If TARGET = "stdcpp" Or (TARGET = "glfw" And GLFW_USE_MINGW)
+		' You can generally get away with using these instructions:
+		
+		#Rem
+			Today, SSE and SSE2 are effectively industry standards.
+			Just about any modern x86 and/or x64 based will support SSE and SSE2.
+			
+			SSE was introduced in the late '90s (1999), and SSE2 was introduced in the early 2000s (2001).
+			SSE2 would not be supported by vendors like AMD until a couple years later.
+			
+			You shouldn't have much of an issue using SSE2 instructions. SSE3 and onward is a different story...
+		#End
+		
+		#If HASH_CPP_SSE
+			#CC_OPTS += "-msse"
+		#End
+		
+		#If HASH_CPP_SSE_2
+			#CC_OPTS += "-msse2"
+		#End
+		
+		#Rem
+			SSE3 was introduced in 2004 and 2005, and has somewhat variable support from vendors.
+			SSE3 is commonly found in AMD processors after their later revisions of the Athlon 64 platform,
+			and is supported by most consumer AMD processors available today. Intel has supported SSE3 for some time,
+			but it didn't become common place until the advent of the 'Core' architecture,
+			and is also supported in some Xeons, and most Pentium D processors.
+		#End
+		
+		#If HASH_CPP_SSE_3
+			#CC_OPTS += "-msse3"
+		#End
+		
+		' These extensions are a bit rarer, currently:
+		
+		#Rem
+			SSE4 can be found on a majority of newer processors, but using it will likely make your binaries unable to run on older processors.
+			SSE4 has several subsets, and is overall best left unused without detailed understanding of your targeted hardware.
+			It's best not to use SSE4 until it becomes more common (Which will likely be within the next few years).
+			
+			SSE4 is available from most of AMD's modern processors, and is available from Intel's newer 'Core' processors.
+			
+			Please read more about SSE4 before trying to use it.
+		#End
+		
+		#If HASH_CPP_SSE_4
+			#CC_OPTS += "-msse4"
+		#End
+		
+		#If HASH_CPP_SSE_4_1
+			#CC_OPTS += "-msse4.1"
+		#End
+		
+		#If HASH_CPP_SSE_4_2
+			#CC_OPTS += "-msse4.2"
+		#End
+		
+		' Very few processors support these extensions (DO NOT USE THEM YET):
+		
+		#Rem
+			AVX is only supported by the new processors introduced by Intel and AMD in 2011 and onward.
+			AVX is overall not recommended as of yet, as very few processors support it, currently.
+			
+			AVX2 is effectively unsupported by the vast majority, as it's currently a brand new extension.
+			
+			I DO NOT recommend using AVX2 at all, let alone AVX.
+			
+			AVX should not be used until it becomes standard for the majority of processors,
+			or you are targeting specific hardware which supports AVX and/or AVX2.
+		#End
+		
+		#If HASH_CPP_AVX
+			#CC_OPTS += "-mavx"
+		#End
+		
+		#If HASH_CPP_AVX_2
+			#CC_OPTS += "-mavx2"
+		#End
+	#End
 #End
 
 ' Imports (External):
@@ -179,7 +339,7 @@ Function RotateLeft:Int(Value:Int, ShiftBits:Int)
 	#End
 	
 	Return Lsl(Value, ShiftBits) | Lsr( Value, (SizeOf_Integer_InBits - ShiftBits))
-	'Return (Value Shl ShiftBits) | (Value Shr (32-ShiftBits))
+	'Return (Value Shl ShiftBits) | (Value Shr (SizeOf_Integer_InBits-ShiftBits))
 End
 
 ' Functions (Private):
@@ -195,6 +355,13 @@ Public
 Class MD5Data
 	' Constant variable(s):
 	Const BLOCK_SIZE:= 16
+	
+	#If SIZEOF_IMPLEMENTED
+		Const BLOCK_SIZE_IN_BYTES:= (BLOCK_SIZE*SizeOf_Byte_InBits)
+	#Else
+		Const BLOCK_SIZE_IN_BYTES:= (BLOCK_SIZE*8)
+	#End
+	
 	Const BLOCK_SCOPE:= (BLOCK_SIZE Shl 2)
 	
 	' Shift values (Normally, the "K" values would be here too, but there's just too many):
@@ -394,8 +561,8 @@ Class MD5BufferHasher Extends MD5Engine<DataBuffer> Final
 	#End
 	
 	' Methods:
-	Method ExtractData:Int(Message:DataBuffer, Index:Int, Length:Int=AUTO)
-		Return Message.PeekByte(Index)
+	Method ExtractData:Int(Message:DataBuffer, Index:Int, Offset:Int, Length:Int=AUTO)
+		Return Message.PeekByte(Index+Offset)
 	End
 	
 	Method RetrieveLength:Int(Message:DataBuffer)
@@ -403,10 +570,8 @@ Class MD5BufferHasher Extends MD5Engine<DataBuffer> Final
 	End
 	
 	Method CorrectByte:Int(B:Int)
-		If (ByteFix) Then
-			If (B < 0) Then
-				Return (256+B)
-			Endif
+		If (ByteFix And B < 0) Then
+			Return (256+B)
 		Endif
 		
 		Return B
@@ -508,13 +673,15 @@ Class MD5StreamHasher Extends MD5Engine<Stream> Final ' This may end up inheriti
 	#End
 	
 	' Methods:
-	Method ExtractData:Int(Message:Stream, Index:Int, Length:Int=AUTO)
+	Method ExtractData:Int(Message:Stream, Index:Int, Offset:Int, Length:Int=AUTO)
 		' Check for errors:
 		#Rem
 			If (Message.Eof()) Then
 				Return -1
 			Endif
 		#End
+		
+		Index += Offset
 		
 		If (CacheSize = 0) Then
 			Return ExtractByte(Message, Index)
@@ -649,10 +816,8 @@ Class MD5StreamHasher Extends MD5Engine<Stream> Final ' This may end up inheriti
 	End
 	
 	Method CorrectByte:Int(B:Int)
-		If (ByteFix) Then
-			If (B < 0) Then
-				Return (256+B)
-			Endif
+		If (ByteFix And B < 0) Then
+			Return (256+B)
 		Endif
 		
 		Return B
@@ -746,8 +911,8 @@ Class MD5Hasher<T> Extends MD5Engine<T> Final
 	#End
 	
 	' Methods:
-	Method ExtractData:Int(Message:T, Index:Int, Length:Int=AUTO)
-		Return Message[Index]
+	Method ExtractData:Int(Message:T, Index:Int, Offset:Int, Length:Int=AUTO)
+		Return Message[Index+Offset]
 	End
 	
 	Method RetrieveLength:Int(Message:T)
@@ -758,9 +923,10 @@ End
 Class MD5Engine<T> Extends MD5Component Abstract
 	' Constant variable(s):
 	Const BLOCK_SIZE:= MD5Data.BLOCK_SIZE
+	Const BLOCK_SIZE_IN_BYTES:= MD5Data.BLOCK_SIZE_IN_BYTES
 	Const BLOCK_SCOPE:= MD5Data.BLOCK_SCOPE
 	
-	Const ZERO:Int = 0
+	Const ZERO:= 0
 	Const AUTO:= MD5_AUTO
 	
 	' Defaults:
@@ -863,11 +1029,11 @@ Class MD5Engine<T> Extends MD5Component Abstract
 			' Copy the data from the message into the block's cache (In shifted/encoded form):
 			For Local I:= BLOCK_SCOPE*BlockID Until Min(BLOCK_SCOPE*(BlockID+1), Length)
 				'(I+Offset) Mod Length
-				Block[((I Shr 2) Mod BLOCK_SIZE)] |= (CorrectByte(ExtractData(Message, (I+Offset), Length)) Shl ((I Mod 4) * 8))
+				Block[((I Shr 2) Mod BLOCK_SIZE)] |= (CorrectByte(ExtractData(Message, I, Offset, Length)) Shl ((I Mod 4) * 8))
 			Next
 			
 			If (BlockIndex = FinalBlockPosition) Then
-				Block[(Length Shr 2) Mod BLOCK_SIZE] |= (128 Shl ((Length Mod 4) * 8)) ' ((BLOCK_SCOPE*2) Shl ...)
+				Block[(Length Shr 2) Mod BLOCK_SIZE] |= (BLOCK_SIZE_IN_BYTES Shl ((Length Mod 4) * 8)) ' ((BLOCK_SCOPE*2) Shl ...)
 				Block[(VirtualBlockArraySize - 2) Mod BLOCK_SIZE] = Length * 8
 			Endif
 			
@@ -1059,7 +1225,7 @@ Class MD5Engine<T> Extends MD5Component Abstract
 	End
 	
 	' Abstract methods:
-	Method ExtractData:Int(Message:T, Index:Int, Length:Int=AUTO) Abstract
+	Method ExtractData:Int(Message:T, Index:Int, Offset:Int, Length:Int=AUTO) Abstract
 	Method RetrieveLength:Int(Message:T) Abstract
 	
 	' Methods (Private):
