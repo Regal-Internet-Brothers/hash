@@ -1,3 +1,7 @@
+Strict
+
+Public
+
 #Rem
 	NOTES:
 		* Please do not use the standard 'MD5Hasher' class for 'DataBuffers' and 'Streams'.
@@ -34,10 +38,6 @@
 		Most things which are generated are specific to the input, and because of this, they can not be cached properly.
 		(Without some reworking which I may or may not do)
 #End
-
-Strict
-
-Public
 
 ' Preprocessor related:
 
@@ -105,7 +105,7 @@ Public
 		THE FOLLOWING NOTES WERE WRITTEN IN NOVEMBER OF 2014,
 		AND MAY NOT DIRECCTLY REFLECT THE CURRENT STATUS OF THESE EXTENSIONS IN THE COMING YEARS:
 		
-		-- EXPLICIT SIMD AND/OR SSE FUNCTIONALITY IS CURRENTLY ONLY AVAILABLE FOR GCC-BASED COMPILERS (This includes MinGW) --
+		-- EXPLICIT SIMD AND/OR SSE FUNCTIONALITY (FOR THIS MODULE) IS CURRENTLY ONLY AVAILABLE FOR GCC-BASED COMPILERS (THIS INCLUDES MINGW) --
 		
 		THE FOLLOWING OPTIMIZATION OPTIONS ARE MAINLY FOR X86/X64 PROCESSORS,
 		AND SHOULD BE USED WITH CAUTION AND UNDERSTANDING OF YOUR TARGETED HARDWARE.
@@ -243,11 +243,8 @@ Public
 #End
 
 ' Imports (External):
-#If UTIL_IMPLEMENTED
-	Import util
-#Else
-	Import retrostrings
-#End
+Import util
+Import retrostrings
 
 Import sizeof
 
@@ -926,8 +923,9 @@ Class MD5Engine<T> Extends MD5Component Abstract
 	Const BLOCK_SIZE_IN_BYTES:= MD5Data.BLOCK_SIZE_IN_BYTES
 	Const BLOCK_SCOPE:= MD5Data.BLOCK_SCOPE
 	
-	Const ZERO:= 0
 	Const AUTO:= MD5_AUTO
+	
+	Const ZERO:Int = 0
 	
 	' Defaults:
 	Const Default_Offset:= 0
