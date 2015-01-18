@@ -7,9 +7,10 @@ Public
 		* Please do not use the standard 'MD5Hasher' class for 'DataBuffers' and 'Streams'.
 		These must be handled by their respective "hashers". Other than that, you should be good.
 		
-		* The 'MD5Hasher' class was developed with arrays (Integer arrays) in mind, but by extension, 'Strings' do work. (Very well, I might add)
+		* The 'MD5Hasher' class was developed with arrays (Integer arrays) in mind,
+		but technically, 'Strings' do work. (Very well, I might add)
 		
-		* To use this module simply do the following:
+		* To use this module's MD5 functionality, simply do the following:
 		
 		Rough example:
 		
@@ -26,17 +27,16 @@ Public
 		For the sake of benchmarking, it's recommended that you just use the global instance as you see fit. (Through 'Run', or 'Instance')
 		
 		* Standard 'Stream' support is implemented, but not completely tested.
-		It's a dirty hack, but it does the job well enough. Use at your own risk.
+		It's a dirty hack, but it does the job well enough; use at your own risk.
 		
 		* All functionality present should be in working order, and follow standard MD5 behaviour.
 		If you get undesired results, please let me know. Please note that on the standard C++ targets (Targets using Monkey's garbage collector),
 		this implementation tends to be bottlenecked by your GC settings.
 		
 		Some things are generated for the sake of memory efficiency. This was built with limited memory environments in mind.
-		In fact part of why I made this was to test out Monkey performance-wise on embedded ARM systems.
+		In fact part of why I made this was to test out Monkey's performance on embedded ARM systems.
 		
 		Most things which are generated are specific to the input, and because of this, they can not be cached properly.
-		(Without some reworking which I may or may not do)
 #End
 
 ' Preprocessor related:
@@ -73,13 +73,13 @@ Public
 #MD5_ALTERNATE_SHIFT = False ' True
 
 ' By enabling this, you give this module the option to generate shared data on runtime (If needed).
-' This is acts as a request, not a demand. At the end of the day, it's the module's call.
+' This acts as a request, not a demand. At the end of the day, it's the module's call.
 #MD5_GENERATE_DATA_WHERE_POSSIBLE = True
 
 #Rem
-	If this is enabled, this module will used an unrolled implementation of the main block processing-routine.
+	If this is enabled, this module will use an unrolled implementation of the main block processing-routine.
 	Such an act is possible with some targets' compilers, but not all are capable of this.
-	For this reason, I've added the option to manually do it. Use this at your own risk, it could be faster on some targets.
+	For this reason, I've added the option to manually do this. Use this at your own risk, it could be faster on some targets.
 	
 	ATTENTION: The 'Standard_MD5Data' object will be unavailable if this is enabled. The 'MD5Data' class is still present, however.
 #End
@@ -103,7 +103,7 @@ Public
 #Rem
 	ATTENTION:
 		THE FOLLOWING NOTES WERE WRITTEN IN NOVEMBER OF 2014,
-		AND MAY NOT DIRECCTLY REFLECT THE CURRENT STATUS OF THESE EXTENSIONS IN THE COMING YEARS:
+		AND MAY NOT DIRECTLY REFLECT THE CURRENT STATUS OF THESE EXTENSIONS IN THE COMING YEARS:
 		
 		-- EXPLICIT SIMD AND/OR SSE FUNCTIONALITY (FOR THIS MODULE) IS CURRENTLY ONLY AVAILABLE FOR GCC-BASED COMPILERS (THIS INCLUDES MINGW) --
 		
@@ -166,7 +166,7 @@ Public
 		
 		#Rem
 			Today, SSE and SSE2 are effectively industry standards.
-			Just about any modern x86 and/or x64 based will support SSE and SSE2.
+			Just about any modern x86 and/or x64 based processor will support SSE and SSE2.
 			
 			SSE was introduced in the late '90s (1999), and SSE2 was introduced in the early 2000s (2001).
 			SSE2 would not be supported by vendors like AMD until a couple years later.
@@ -311,7 +311,7 @@ Function MD5:MD5Hash(Str:String)
 	Return MD5Hasher<String>.Run(Str)
 End
 
-' This is effectively just a really quick rewrite of Java's 'hashCode' method:
+' This is effectively just a rewrite of Java's 'hashCode' method:
 Function HashCode:Int(S:String)
 	' Local variable(s):
 	Local Hash:Int = 0
@@ -325,6 +325,8 @@ Function HashCode:Int(S:String)
 	Return Hash
 End
 
+' This command simply wraps 'HashCode',
+' and outputs the result in hexadecimal.
 Function HashCodeInHex:HexValue(S:String)
 	' Return the hash-code in hexadecimal.
 	Return IntToHex(HashCode(S))
@@ -1151,7 +1153,7 @@ Class MD5Engine<T> Extends MD5Component Abstract
 							
 							F = B ~ C ~ D
 							G = (3 * I + 5) Mod BLOCK_SIZE
-						ElseIf (I < 64) Then
+						Elseif (I < 64) Then
 							'F = C ~ (B | (~D))
 							'G = (7*I) Mod BLOCK_SIZE
 							
