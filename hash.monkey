@@ -43,7 +43,11 @@ Public
 
 ' By enabling this, you allow this module to use optimization strategies inside and outside of Monkey.
 ' Please take caution when using this functionality. Very few targets are supported to begin with.
-#HASH_EXPERIMENTAL = False
+'#HASH_EXPERIMENTAL = False
+
+#If CONFIG = "release" ' "debug"
+	#HASH_SAFE = True
+#End
 
 #If HASH_EXPERIMENTAL
 	' With this enabled some targets (Mainly STDCPP / C++ Tool) could see performance improvements for some of these algorithms.
@@ -317,7 +321,7 @@ Function HashCode:Int(S:String)
 	Local Hash:Int = 0
 	
 	' Compute the "hash code":
-	For Local I:= 0 Until S.Length()
+	For Local I:= 0 Until S.Length
 		Hash = 31*Hash + S[I]
 	Next
 	
@@ -565,7 +569,7 @@ Class MD5BufferHasher Extends MD5Engine<DataBuffer> Final
 	End
 	
 	Method RetrieveLength:Int(Message:DataBuffer)
-		Return Message.Length()
+		Return Message.Length
 	End
 	
 	Method CorrectByte:Int(B:Int)
@@ -672,7 +676,7 @@ Class MD5StreamHasher Extends MD5Engine<Stream> Final ' This may end up inheriti
 	#End
 	
 	' Methods:
-	Method ExtractData:Int(Message:Stream, Index:Int, Offset:Int, Length:Int=AUTO)
+	Method ExtractData:Int(Message:Stream, Position:Int, Offset:Int, Length:Int=AUTO)
 		' Check for errors:
 		#Rem
 			If (Message.Eof()) Then
@@ -680,80 +684,20 @@ Class MD5StreamHasher Extends MD5Engine<Stream> Final ' This may end up inheriti
 			Endif
 		#End
 		
-		Index += Offset
+		Local Index:= (Position+Offset)
 		
 		If (CacheSize = 0) Then
 			Return ExtractByte(Message, Index)
 		Endif
 		
-		Local CacheCheck:Bool = False
-		
-		#If MD5_STREAM_CACHE_MODE = MD5_STREAM_CACHE_MODE_BUFFER
-			CacheCheck = (Cache = Null)
-		#End
-		
-		If (Not CacheCheck) Then
-			CacheCheck = (Index >= CachePosition+Cache.Length())
-		Endif
-		
-		If (CacheCheck) Then
+		If (Position = 0 Or Index >= CachePosition+Cache.Length) Then
 			If (Length = AUTO) Then
-				Length = Message.Length()
+				Length = Message.Length
 			Endif
 			
-			Local BytesLeft:= Max(Length-Message.Position(), 0)
+			Local BytesLeft:= Max(Length-Message.Position, 0)
 			
-			Local CacheLengthComparison:Bool = False
-			
-			#If MD5_STREAM_CACHE_MODE = MD5_STREAM_CACHE_MODE_BUFFER
-				CacheLengthComparison = (Cache = Null)
-			#End
-			
-			If (Not CacheLengthComparison) Then
-				CacheLengthComparison = (CacheSize <> Cache.Length())
-			Endif
-			
-			If (CacheLengthComparison) Then
-				If (CacheSize = AUTO) Then
-					CacheSize = BytesLeft / AUTO_CACHE_DIVISOR
-					
-					If (AUTO_CACHE_MAX_SIZE_ENABLED) Then
-						CacheSize = Min(CacheSize, MAX_AUTO_CACHE_SIZE)
-					Endif
-					
-					If (AUTO_CACHE_MIN_SIZE_ENABLED) Then
-						CacheSize = Max(CacheSize, MIN_AUTO_CACHE_SIZE)
-					Endif
-				Endif
-				
-				#If MD5_STREAM_CACHE_MODE = MD5_STREAM_CACHE_MODE_ARRAY
-					#If MD5_STREAM_ALLOW_DEFAULT_CACHESIZE
-						If (Default_CacheSize > 0 And Default_CacheSize <> AUTO And CacheSize <= 0) Then
-							Cache = New Int[Default_CacheSize]
-						Else
-					#End
-							Cache = New Int[CacheSize]
-					#If MD5_STREAM_ALLOW_DEFAULT_CACHESIZE
-						Endif
-					#End
-				#Elseif MD5_STREAM_CACHE_MODE = MD5_STREAM_CACHE_MODE_BUFFER
-					If (Cache <> Null) Then
-						Cache.Discard()
-					Endif
-					
-					If (CacheSize <= 0 And Default_CacheSize > 0) Then
-						Cache = New DataBuffer(Default_CacheSize)
-					Else
-						Cache = New DataBuffer(CacheSize)
-					Endif
-				#Else
-					' Nothing so far.
-				#End
-			Else
-				'GenericUtilities<Int>.Zero(Cache)
-			Endif
-			
-			CachePosition = Message.Position()
+			CachePosition = Message.Position
 			
 			Local BytesToRead:= Min(CacheSize, BytesLeft)
 			
@@ -771,7 +715,7 @@ Class MD5StreamHasher Extends MD5Engine<Stream> Final ' This may end up inheriti
 				#End
 			#Elseif MD5_STREAM_CACHE_MODE = MD5_STREAM_CACHE_MODE_BUFFER
 				If (BulkLoad) Then
-					Message.Read(Cache, 0, BytesToRead)
+					Message.ReadAll(Cache, 0, BytesToRead)
 				Else
 					For Local I:Int = 0 Until BytesToRead
 						Cache.PokeByte(I, ExtractByte(Message, Index+I))
@@ -793,7 +737,7 @@ Class MD5StreamHasher Extends MD5Engine<Stream> Final ' This may end up inheriti
 		Return Message.ReadByte()
 		
 		#Rem
-			'Local Position:= Message.Position()
+			'Local Position:= Message.Position
 			Local Data:Int
 			
 			'Message.Seek(Index)
@@ -811,7 +755,7 @@ Class MD5StreamHasher Extends MD5Engine<Stream> Final ' This may end up inheriti
 	End
 	
 	Method RetrieveLength:Int(Message:Stream)
-		Return Message.Length() ' AUTO
+		Return Message.Length ' AUTO
 	End
 	
 	Method CorrectByte:Int(B:Int)
@@ -820,6 +764,54 @@ Class MD5StreamHasher Extends MD5Engine<Stream> Final ' This may end up inheriti
 		Endif
 		
 		Return B
+	End
+	
+	Method MakeCache:Void(Message:Stream)
+		Local BytesLeft:= Max(Message.Length-Message.Position, 0)
+		
+		#If HASH_SAFE
+			If (BytesLeft = 0) Then
+				Return
+			Endif
+		#End
+		
+		If (CacheSize = AUTO) Then
+			CacheSize = BytesLeft / AUTO_CACHE_DIVISOR
+			
+			If (AUTO_CACHE_MAX_SIZE_ENABLED) Then
+				CacheSize = Min(CacheSize, MAX_AUTO_CACHE_SIZE)
+			Endif
+			
+			If (AUTO_CACHE_MIN_SIZE_ENABLED) Then
+				CacheSize = Max(CacheSize, MIN_AUTO_CACHE_SIZE)
+			Endif
+		Endif
+		
+		#If MD5_STREAM_CACHE_MODE = MD5_STREAM_CACHE_MODE_ARRAY
+			#If MD5_STREAM_ALLOW_DEFAULT_CACHESIZE
+				If (Default_CacheSize > 0 And Default_CacheSize <> AUTO And CacheSize <= 0) Then
+					Cache = New Int[Default_CacheSize]
+				Else
+			#End
+					Cache = New Int[CacheSize]
+			#If MD5_STREAM_ALLOW_DEFAULT_CACHESIZE
+				Endif
+			#End
+		#Elseif MD5_STREAM_CACHE_MODE = MD5_STREAM_CACHE_MODE_BUFFER
+			If (Cache <> Null) Then
+				Cache.Discard()
+			Endif
+			
+			If (CacheSize <= 0 And Default_CacheSize > 0) Then
+				Cache = New DataBuffer(Default_CacheSize)
+			Else
+				Cache = New DataBuffer(CacheSize)
+			Endif
+		#Else
+			#Error "Unsupported caching mode."
+		#End
+		
+		Return
 	End
 	
 	Method DiscardCache:Void()
@@ -841,7 +833,12 @@ Class MD5StreamHasher Extends MD5Engine<Stream> Final ' This may end up inheriti
 		Return
 	End
 	
-	' Fields:
+	' Fields (Public):
+	' Nothing so far.
+	
+	' Fields (Protected):
+	Protected
+	
 	Field CacheSize:Int
 	Field CachePosition:Int
 	
@@ -856,6 +853,8 @@ Class MD5StreamHasher Extends MD5Engine<Stream> Final ' This may end up inheriti
 	' Booleans / Flags:
 	Field ByteFix:Bool
 	Field BulkLoad:Bool
+	
+	Public
 End
 
 #Rem
@@ -915,7 +914,7 @@ Class MD5Hasher<T> Extends MD5Engine<T> Final
 	End
 	
 	Method RetrieveLength:Int(Message:T)
-		Return Message.Length()
+		Return Message.Length
 	End
 End
 
@@ -1015,6 +1014,8 @@ Class MD5Engine<T> Extends MD5Component Abstract
 		' The "virtual" size of the block cache/array. (Used for data transformation)
 		Local VirtualBlockArraySize:= (BlockCount * BLOCK_SIZE)
 		Local FinalBlockPosition:= (VirtualBlockArraySize - BLOCK_SIZE)
+		
+		MakeCache(Message)
 		
 		For Local BlockIndex:= 0 Until VirtualBlockArraySize Step BLOCK_SIZE
 			' Calculate the current block-ID:
@@ -1205,7 +1206,7 @@ Class MD5Engine<T> Extends MD5Component Abstract
 		#If UTIL_IMPLEMENTED
 			GenericUtilities<Int>.Zero(Block)
 		#Else
-			For Local Index:= 0 Until Block.Length()
+			For Local Index:= 0 Until Block.Length
 				Block[Index] = ZERO
 			Next
 		#End
@@ -1218,6 +1219,15 @@ Class MD5Engine<T> Extends MD5Component Abstract
 	End
 	
 	' Purely virtual methods:
+	
+	' This routine should not copy/read from, or otherwise mutate 'Message'.
+	' That argument is passed for analysis purposes only.
+	Method MakeCache:Void(Message:T)
+		' Implement this if needed.
+		
+		Return
+	End
+	
 	Method DiscardCache:Void()
 		' Implement this if needed.
 		
