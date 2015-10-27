@@ -3,10 +3,10 @@ Strict
 Public
 
 ' Imports:
-Import hash
+Import regal.hash
 
 #If TARGET = "stdcpp"
-	Import time
+	Import regal.time
 #Else
 	Import mojo.app
 #End
