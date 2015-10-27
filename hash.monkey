@@ -247,10 +247,10 @@ Public
 #End
 
 ' Imports (External):
-Import util
-Import retrostrings
+Import regal.util
+Import regal.retrostrings
 
-Import sizeof
+Import regal.sizeof
 
 ' Standard BRL modules:
 Import brl.stream

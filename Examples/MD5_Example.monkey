@@ -3,7 +3,7 @@ Strict
 Public
 
 ' Imports:
-Import hash
+Import regal.hash
 
 Import brl.databuffer
 Import brl.datastream
