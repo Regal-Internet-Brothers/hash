@@ -384,8 +384,7 @@ End
 ' Experimental functionality:
 #If HASH_EXPERIMENTAL
 	' To be refactored into a proper generic system:
-	'Function SHA1:Int[](S:Stream, ByteCount:Int)
-	Function SHA1:Hash(S:Stream, ByteCount:Int)
+	Function RAW_SHA1:Void(S:Stream, ByteCount:Int, Output:Int[], OutputOffset:Int=0)
 		Const BLOCK_SIZE:= 16
 		
 		Local H0:Int, H1:Int, H2:Int, H3:Int, H4:Int
@@ -476,10 +475,35 @@ End
 			H4 += E
 		Next
 		
-		'Return [H0, H1, H2, H3, H4]
+		Output[OutputOffset] = H0
+		Output[OutputOffset+1] = H1
+		Output[OutputOffset+2] = H2
+		Output[OutputOffset+3] = H3
+		Output[OutputOffset+4] = H4
+		
+		Return
+	End
+	
+	Function RAW_SHA1:Int[](S:Stream, ByteCount:Int)
+		Local Out:= New Int[5]
+		
+		RAW_SHA1(S, ByteCount, Out)
+		
+		Return Out
+	End
+	
+	Function SHA1:String(S:Stream, ByteCount:Int)
+		Local Out:= RAW_SHA1(S, ByteCount)
+		
 		'Return IntToHex(H0) + ", " + IntToHex(H1) + ", " + IntToHex(H2) + ", " + IntToHex(H3) + ", " + IntToHex(H4)
 		'Return HexLE(H0) + HexLE(H1) + HexLE(H2) + HexLE(H3) + HexLE(H4)
-		Return HexBE(H0) + HexBE(H1) + HexBE(H2) + HexBE(H3) + HexBE(H4)
+		'Return HexBE(H0) + HexBE(H1) + HexBE(H2) + HexBE(H3) + HexBE(H4)
+		Return IntToHex(Out[0]) + IntToHex(Out[1]) + IntToHex(Out[2]) + IntToHex(Out[3]) + IntToHex(Out[4])
+		'Return HexBE(Out[0]) + ", " + HexBE(Out[1]) + ", " + HexBE(Out[2]) + ", " + HexBE(Out[3]) + ", " + HexBE(Out[4])
+	End
+	
+	Function SHA1:Hash(S:Stream)
+		Return SHA1(S, S.Length)
 	End
 	
 	' This encodes 'Data' into raw base 64 text; based off of Diddy's implementation.
@@ -490,11 +514,13 @@ End
 		' Local variable(s):
 		Local A:Int, B:Int, C:Int, D:Int
 		
-		For Local I:= 0 Until Length Step 3
+		Local I:= 0
+		
+		Repeat
 			Local S1:Int
 			
 			' Read the initial byte, then resolve the next two for this cycle:
-			S1 = Data.ReadByte()
+			S1 = (Data.ReadByte() & $FF)
 			
 			' Assign our byte representatives:
 			A = S1 Shr 2
@@ -502,7 +528,7 @@ End
 			
 			' Load our first unresolved byte
 			If (I+1 < Length) Then
-				Local S2:= Data.ReadByte()
+				Local S2:= (Data.ReadByte() & $FF)
 				
 				B |= (S2 Shr 4)
 				C = ((S2 & 15) Shl 2)
@@ -512,7 +538,7 @@ End
 			
 			' Load the second unresolved byte:
 			If (I+2 < Length) Then
-				Local S3:= Data.ReadByte()
+				Local S3:= (Data.ReadByte() & $FF)
 				
 				C |= (S3 Shr 6)
 				D = (S3 & 63)
@@ -524,14 +550,16 @@ End
 			Output.WriteByte(__BASE64_CHARACTER_TABLE[B])
 			
 			' A bit of an order-hack, but it works:
-			If (C < BASE64_CHAR_BOUNDS) Then
+			If (C <= BASE64_CHAR_BOUNDS) Then
 				Output.WriteByte(__BASE64_CHARACTER_TABLE[C])
 			Endif
 			
-			If (D < BASE64_CHAR_BOUNDS) Then
+			If (D <= BASE64_CHAR_BOUNDS) Then
 				Output.WriteByte(__BASE64_CHARACTER_TABLE[D])
 			Endif
-		Next
+			
+			I += 3
+		Until (I >= Length)
 		
 		Return
 	End
