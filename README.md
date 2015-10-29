@@ -19,3 +19,4 @@ The MD5 implementation is still rather slow with large files, but it's far faste
 * ["MD5 Shootout" by BitBucket user Rory "rplaire" Plaire.](https://bitbucket.org/rplaire/md5-shootout/)
 * [RosettaCode's MD5 implementation page. (And the people behind it)](http://rosettacode.org/wiki/MD5/Implementation)
 * [Wikipedia's MD5 pseudocode example.](http://en.wikipedia.org/wiki/MD5#Pseudocode)
+* [FWeinb's original SHA1 implementation. (BlitzMax)](https://github.com/FWeinb/websocket.mod/blob/master/crypto.bmx)
