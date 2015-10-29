@@ -14,9 +14,10 @@ The MD5 implementation is still rather slow with large files, but it's far faste
 * Craig Kiesau, for his original MD5 function written in BlitzBasic.
 * Fred, for his original port of Craig's BlitzBasic code.
 * Xaron, for his 'Strict' compatible version of Fred's code.
+* [FWeinb's original SHA1 implementation. (BlitzMax)](https://github.com/FWeinb/websocket.mod/blob/master/crypto.bmx)
+* [Diddy's Base64 implementation](https://github.com/swoolcock/diddy/blob/master/src/diddy/base64.monkey); used as a reference.
 
 *Other References:*
 * ["MD5 Shootout" by BitBucket user Rory "rplaire" Plaire.](https://bitbucket.org/rplaire/md5-shootout/)
 * [RosettaCode's MD5 implementation page. (And the people behind it)](http://rosettacode.org/wiki/MD5/Implementation)
 * [Wikipedia's MD5 pseudocode example.](http://en.wikipedia.org/wiki/MD5#Pseudocode)
-* [FWeinb's original SHA1 implementation. (BlitzMax)](https://github.com/FWeinb/websocket.mod/blob/master/crypto.bmx)

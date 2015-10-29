@@ -104,6 +104,7 @@ Public
 #End
 
 ' Compiler configuration:
+
 #Rem
 	ATTENTION:
 		THE FOLLOWING NOTES WERE WRITTEN IN NOVEMBER OF 2014,
@@ -246,7 +247,11 @@ Public
 	#End
 #End
 
-' Imports (External):
+' Imports (Public):
+
+' External language bindings.
+Import external
+
 Import regal.util
 Import regal.retrostrings
 
@@ -256,22 +261,36 @@ Import regal.sizeof
 Import brl.stream
 Import brl.databuffer
 
-' Imports (Internal):
+' Imports (Private):
+Private
 
-' External language bindings.
-Import external
+#If HASH_EXPERIMENTAL
+	Import regal.ioutil.stringstream
+#End
+
+Public
 
 ' Aliases:
 Alias HexValue = String
 Alias Hash = HexValue
 Alias MD5Hash = Hash
 
-' Constant variable(s):
+' Constant variable(s) (Public):
 #If UTIL_IMPLEMENTED
 	Const MD5_AUTO:= UTIL_AUTO
 #Else
 	Const MD5_AUTO:Int = -1
 #End
+
+' Constant variable(s) (Private):
+Private
+
+#If HASH_EXPERIMENTAL
+	' DO NOT modify this "constant"; assume this as an internal constant variable.
+	Global __BASE64_CHARACTER_TABLE:String = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=" ' Const
+#End
+
+Public
 
 ' Global variable(s):
 ' Nothing so far.
@@ -353,105 +372,6 @@ Function HashCodeInHex:HexValue(S:String)
 	Return IntToHex(HashCode(S))
 End
 
-' To be refactored into a proper generic system:
-'Function SHA1:Int[](S:Stream, ByteCount:Int)
-Function SHA1:Hash(S:Stream, ByteCount:Int)
-	Const BLOCK_SIZE:= 16
-	
-	Local H0:Int, H1:Int, H2:Int, H3:Int, H4:Int
-	
-	H0 = $67452301
-	H1 = $EFCDAB89
-	H2 = $98BADCFE
-	H3 = $10325476
-	H4 = $C3D2E1F0
-	
-	Local IntCount:= (((ByteCount + 8) Shr 6) + 1) Shl 4
-	
-	Local Data:= New Int[IntCount]
-	
-	For Local I:= 0 Until ByteCount
-		' Load a byte into 'C', and fix its encoding:
-		#Rem
-		Local C:= S.ReadByte()
-		
-		If (C < 0) Then
-			C += 256
-		Endif
-		#End
-		
-		Local C:= (S.ReadByte() & $FF)
-		
-		Data[I Shr 2] = ((Data[I Shr 2] Shl 8) | C)
-	Next
-	
-	Data[ByteCount Shr 2] = ((Data[ByteCount Shr 2] Shl 8) | $80) Shl ((3 - (ByteCount & 3)) Shl 3)
-	
-	Local ByteCountX8:= (ByteCount * 8)
-	
-	Data[IntCount - 2] = 0 ' ByteCountX8
-	Data[IntCount - 1] = ByteCountX8 ' (ByteCountX8 & $FFFFFFFF)
-	
-	For Local ChunkStart:= 0 Until IntCount Step BLOCK_SIZE
-		Local A:= H0
-		Local B:= H1
-		Local C:= H2
-		Local D:= H3
-		Local E:= H4
-		
-		Local W:= New Int[80]
-		
-		GenericUtilities<Int>.CopyArray(Data, W, ChunkStart, 0, ChunkStart+16)
-		
-		For Local I:= 16 Until 80
-			W[I] = RotateLeft(W[I - 3] ~ W[I - 8] ~ W[I - 14] ~ W[I - 16], 1)
-		Next
-		
-		For Local I:= 0 Until 20
-			Local T:= RotateLeft(A, 5) + (D ~ (B & (C ~ D))) + E + $5A827999 + W[I]
-			
-			E = D; D = C
-			C = RotateLeft(B, 30)
-			B = A; A = T
-		Next
-		
-		For Local I:= 20 Until 40
-			Local T:= RotateLeft(A, 5) + (B ~ C ~ D) + E + $6ED9EBA1 + W[I]
-			
-			E = D; D = C
-			C = RotateLeft(B, 30)
-			B = A; A = T
-		Next
-		
-		For Local I:= 40 Until 60
-			Local T:= RotateLeft(A, 5) + ((B & C) | (D & (B | C))) + E + $8F1BBCDC + W[I]
-			
-			E = D; D = C
-			C = RotateLeft(B, 30)
-			B = A; A = T
-		Next
-		
-		For Local I:= 60 Until 80
-			Local T:= RotateLeft(A, 5) + (B ~ C ~ D) + E + $CA62C1D6 + W[I]
-			
-			E = D; D = C
-			C = RotateLeft(B, 30)
-			B = A; A = T
-		Next
-		
-		H0 += A
-		H1 += B
-		H2 += C
-		H3 += D
-		H4 += E
-	Next
-	
-	'Return [H0, H1, H2, H3, H4]
-	'Return IntToHex(H0) + ", " + IntToHex(H1) + ", " + IntToHex(H2) + ", " + IntToHex(H3) + ", " + IntToHex(H4)
-	'Return HexLE(H0) + HexLE(H1) + HexLE(H2) + HexLE(H3) + HexLE(H4)
-	Return HexBE(H0) + HexBE(H1) + HexBE(H2) + HexBE(H3) + HexBE(H4)
-End
-
 Function RotateLeft:Int(Value:Int, ShiftBits:Int)
 	#If Not SIZEOF_IMPLEMENTED
 		Const SizeOf_Integer_InBits:Int = 4*8 ' 32-bit.
@@ -460,6 +380,168 @@ Function RotateLeft:Int(Value:Int, ShiftBits:Int)
 	Return Lsl(Value, ShiftBits) | Lsr( Value, (SizeOf_Integer_InBits - ShiftBits))
 	'Return (Value Shl ShiftBits) | (Value Shr (SizeOf_Integer_InBits-ShiftBits))
 End
+
+' Experimental functionality:
+#If HASH_EXPERIMENTAL
+	' To be refactored into a proper generic system:
+	'Function SHA1:Int[](S:Stream, ByteCount:Int)
+	Function SHA1:Hash(S:Stream, ByteCount:Int)
+		Const BLOCK_SIZE:= 16
+		
+		Local H0:Int, H1:Int, H2:Int, H3:Int, H4:Int
+		
+		H0 = $67452301
+		H1 = $EFCDAB89
+		H2 = $98BADCFE
+		H3 = $10325476
+		H4 = $C3D2E1F0
+		
+		Local IntCount:= (((ByteCount + 8) Shr 6) + 1) Shl 4
+		
+		Local Data:= New Int[IntCount]
+		
+		For Local I:= 0 Until ByteCount
+			' Load a byte into 'C', and fix its encoding:
+			#Rem
+			Local C:= S.ReadByte()
+			
+			If (C < 0) Then
+				C += 256
+			Endif
+			#End
+			
+			Local C:= (S.ReadByte() & $FF)
+			
+			Data[I Shr 2] = ((Data[I Shr 2] Shl 8) | C)
+		Next
+		
+		Data[ByteCount Shr 2] = ((Data[ByteCount Shr 2] Shl 8) | $80) Shl ((3 - (ByteCount & 3)) Shl 3)
+		
+		Local ByteCountX8:= (ByteCount * 8)
+		
+		Data[IntCount - 2] = 0 ' ByteCountX8
+		Data[IntCount - 1] = ByteCountX8 ' (ByteCountX8 & $FFFFFFFF)
+		
+		For Local ChunkStart:= 0 Until IntCount Step BLOCK_SIZE
+			Local A:= H0
+			Local B:= H1
+			Local C:= H2
+			Local D:= H3
+			Local E:= H4
+			
+			Local W:= New Int[80]
+			
+			GenericUtilities<Int>.CopyArray(Data, W, ChunkStart, 0, ChunkStart+16)
+			
+			For Local I:= 16 Until 80
+				W[I] = RotateLeft(W[I - 3] ~ W[I - 8] ~ W[I - 14] ~ W[I - 16], 1)
+			Next
+			
+			For Local I:= 0 Until 20
+				Local T:= RotateLeft(A, 5) + (D ~ (B & (C ~ D))) + E + $5A827999 + W[I]
+				
+				E = D; D = C
+				C = RotateLeft(B, 30)
+				B = A; A = T
+			Next
+			
+			For Local I:= 20 Until 40
+				Local T:= RotateLeft(A, 5) + (B ~ C ~ D) + E + $6ED9EBA1 + W[I]
+				
+				E = D; D = C
+				C = RotateLeft(B, 30)
+				B = A; A = T
+			Next
+			
+			For Local I:= 40 Until 60
+				Local T:= RotateLeft(A, 5) + ((B & C) | (D & (B | C))) + E + $8F1BBCDC + W[I]
+				
+				E = D; D = C
+				C = RotateLeft(B, 30)
+				B = A; A = T
+			Next
+			
+			For Local I:= 60 Until 80
+				Local T:= RotateLeft(A, 5) + (B ~ C ~ D) + E + $CA62C1D6 + W[I]
+				
+				E = D; D = C
+				C = RotateLeft(B, 30)
+				B = A; A = T
+			Next
+			
+			H0 += A
+			H1 += B
+			H2 += C
+			H3 += D
+			H4 += E
+		Next
+		
+		'Return [H0, H1, H2, H3, H4]
+		'Return IntToHex(H0) + ", " + IntToHex(H1) + ", " + IntToHex(H2) + ", " + IntToHex(H3) + ", " + IntToHex(H4)
+		'Return HexLE(H0) + HexLE(H1) + HexLE(H2) + HexLE(H3) + HexLE(H4)
+		Return HexBE(H0) + HexBE(H1) + HexBE(H2) + HexBE(H3) + HexBE(H4)
+	End
+	
+	' This encodes 'Data' into raw base 64 text; based off of Diddy's implementation.
+	Function EncodeBase64:Void(Data:Stream, Length:Int, Output:Stream)
+		' Constant variable(s):
+		Const BASE64_CHAR_BOUNDS:= 64
+		
+		' Local variable(s):
+		Local A:Int, B:Int, C:Int, D:Int
+		
+		For Local I:= 0 Until Length Step 3
+			Local S1:Int
+			
+			' Read the initial byte, then resolve the next two for this cycle:
+			S1 = Data.ReadByte()
+			
+			' Assign our byte representatives:
+			A = S1 Shr 2
+			B = ((S1 & 3) Shl 4)
+			
+			' Load our first unresolved byte
+			If (I+1 < Length) Then
+				Local S2:= Data.ReadByte()
+				
+				B |= (S2 Shr 4)
+				C = ((S2 & 15) Shl 2)
+			Else
+				C = BASE64_CHAR_BOUNDS
+			Endif
+			
+			' Load the second unresolved byte:
+			If (I+2 < Length) Then
+				Local S3:= Data.ReadByte()
+				
+				C |= (S3 Shr 6)
+				D = (S3 & 63)
+			Else
+				D = BASE64_CHAR_BOUNDS
+			Endif
+			
+			Output.WriteByte(__BASE64_CHARACTER_TABLE[A])
+			Output.WriteByte(__BASE64_CHARACTER_TABLE[B])
+			
+			' A bit of an order-hack, but it works:
+			If (C < BASE64_CHAR_BOUNDS) Then
+				Output.WriteByte(__BASE64_CHARACTER_TABLE[C])
+			Endif
+			
+			If (D < BASE64_CHAR_BOUNDS) Then
+				Output.WriteByte(__BASE64_CHARACTER_TABLE[D])
+			Endif
+		Next
+		
+		Return
+	End
+	
+	Function EncodeBase64:Void(Data:Stream, Output:Stream)
+		EncodeBase64(Data, Data.Length, Output)
+		
+		Return
+	End
+#End
 
 ' Functions (Private):
 Private
