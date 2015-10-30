@@ -2,15 +2,8 @@ Strict
 
 Public
 
-' Imports (Public):
+' Imports:
 Import brl.stream
-
-' Imports (Private):
-Private
-
-Import regal.typetool
-
-Public
 
 ' Constant variable(s) (Private):
 Private
