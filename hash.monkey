@@ -249,12 +249,15 @@ Public
 
 ' Imports (Public):
 
+' Internal:
+
 ' External language bindings.
 Import external
 
-Import regal.util
-Import regal.retrostrings
+Import base64
 
+' External:
+Import regal.util
 Import regal.sizeof
 
 ' Standard BRL modules:
@@ -268,6 +271,8 @@ Private
 	Import regal.ioutil.stringstream
 #End
 
+Import regal.retrostrings
+
 Public
 
 ' Aliases:
@@ -275,22 +280,12 @@ Alias HexValue = String
 Alias Hash = HexValue
 Alias MD5Hash = Hash
 
-' Constant variable(s) (Public):
+' Constant variable(s):
 #If UTIL_IMPLEMENTED
 	Const MD5_AUTO:= UTIL_AUTO
 #Else
 	Const MD5_AUTO:Int = -1
 #End
-
-' Constant variable(s) (Private):
-Private
-
-#If HASH_EXPERIMENTAL
-	' DO NOT modify this "constant"; assume this as an internal constant variable.
-	Global __BASE64_CHARACTER_TABLE:String = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=" ' Const
-#End
-
-Public
 
 ' Global variable(s):
 ' Nothing so far.
@@ -504,70 +499,6 @@ End
 	
 	Function SHA1:Hash(S:Stream)
 		Return SHA1(S, S.Length)
-	End
-	
-	' This encodes 'Data' into raw base 64 text; based off of Diddy's implementation.
-	Function EncodeBase64:Void(Data:Stream, Length:Int, Output:Stream)
-		' Constant variable(s):
-		Const BASE64_CHAR_BOUNDS:= 64
-		
-		' Local variable(s):
-		Local A:Int, B:Int, C:Int, D:Int
-		
-		Local I:= 0
-		
-		Repeat
-			Local S1:Int
-			
-			' Read the initial byte, then resolve the next two for this cycle:
-			S1 = (Data.ReadByte() & $FF)
-			
-			' Assign our byte representatives:
-			A = S1 Shr 2
-			B = ((S1 & 3) Shl 4)
-			
-			' Load our first unresolved byte
-			If (I+1 < Length) Then
-				Local S2:= (Data.ReadByte() & $FF)
-				
-				B |= (S2 Shr 4)
-				C = ((S2 & 15) Shl 2)
-			Else
-				C = BASE64_CHAR_BOUNDS
-			Endif
-			
-			' Load the second unresolved byte:
-			If (I+2 < Length) Then
-				Local S3:= (Data.ReadByte() & $FF)
-				
-				C |= (S3 Shr 6)
-				D = (S3 & 63)
-			Else
-				D = BASE64_CHAR_BOUNDS
-			Endif
-			
-			Output.WriteByte(__BASE64_CHARACTER_TABLE[A])
-			Output.WriteByte(__BASE64_CHARACTER_TABLE[B])
-			
-			' A bit of an order-hack, but it works:
-			If (C <= BASE64_CHAR_BOUNDS) Then
-				Output.WriteByte(__BASE64_CHARACTER_TABLE[C])
-			Endif
-			
-			If (D <= BASE64_CHAR_BOUNDS) Then
-				Output.WriteByte(__BASE64_CHARACTER_TABLE[D])
-			Endif
-			
-			I += 3
-		Until (I >= Length)
-		
-		Return
-	End
-	
-	Function EncodeBase64:Void(Data:Stream, Output:Stream)
-		EncodeBase64(Data, Data.Length, Output)
-		
-		Return
 	End
 #End
 
