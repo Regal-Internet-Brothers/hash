@@ -279,6 +279,7 @@ Public
 Alias HexValue = String
 Alias Hash = HexValue
 Alias MD5Hash = Hash
+Alias SHA1Hash = Hash
 
 ' Constant variable(s):
 #If UTIL_IMPLEMENTED
