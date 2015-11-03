@@ -965,6 +965,8 @@ Class MD5StreamHasher Extends MD5Engine<Stream> Final ' This may end up inheriti
 			Else
 				Cache = New DataBuffer(CacheSize)
 			Endif
+		#Elseif MD5_STREAM_CACHE_MODE = MD5_STREAM_CACHE_MODE_STRING
+			' Nothing so far.
 		#Else
 			#Error "Unsupported caching mode."
 		#End
