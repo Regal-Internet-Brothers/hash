@@ -1,9 +1,14 @@
 hash
 ====
 
+## Description
 A module containing several (Currently two) hashing functions for the [Monkey programming language](https://github.com/blitz-research/monkey).
 Most notably: A multi-input MD5 implementation, and a quick rewrite of Java's 'hashCode' command.
 
+## Installation
+This module is officially distributed with the [Regal Modules](https://github.com/Regal-Internet-Brothers/regal-modules#regal-modules) project. To install this module, please follow the installation guide provided with that repository.
+
+## Details
 The MD5 implementation is still rather slow with large files, but it's far faster than the alternatives, currently. One of the benefits of my MD5 implementation is the smaller memory footprint. Add together the memory optimizations, the variety of container-backends, input-types, and a good compiler, and this should work well for realistic use. That being said, there are other implementations. So, if this doesn't fit your project, I'd recommend looking at the *"Special Thanks"* and *"Other References"* sections.
 
 [Loosely based on the MD5 implementations provided by the Monkey community.](http://www.monkey-x.com/Community/posts.php?topic=3483)
