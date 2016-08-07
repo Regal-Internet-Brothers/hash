@@ -255,6 +255,7 @@ Public
 Import external
 
 Import base64
+Import adler32
 
 ' External:
 Import regal.util
