@@ -15,7 +15,7 @@ Public
 
 ' Functions (Public):
 
-' Based loosely on the ZLib / Tiny Inflate source:
+' Based loosely on the ZLib and UZLib source:
 Function Adler32:Int(Data:DataBuffer, Length:Int, Offset:Int=0, Prev_Sum:Int=1) ' UInt
 	' Constant variable(s):
 	Const ADLER32_BASE:= 65521
