@@ -19,12 +19,10 @@ Public
 ' Functions (Public):
 
 ' Loosely based on the ZLib and UZLib source:
-Function CRC32:Int(Data:DataBuffer, Length:Int, Offset:Int=0)
+Function CRC32:Int(Data:DataBuffer, Length:Int, Offset:Int=0, CRC:Int=$FFFFFFFF, FixValue:Bool=True) ' UInt
 	If (Length = 0) Then
 		Return 0
 	Endif
-	
-	Local CRC:Int = $FFFFFFFF ' UInt
 	
 	For Local I:= 0 Until Length
 		CRC ~= (Data.PeekByte(I) & $FF)
@@ -32,6 +30,10 @@ Function CRC32:Int(Data:DataBuffer, Length:Int, Offset:Int=0)
 		CRC = _CRC32_Table_Get(CRC & $0F) ~ Lsr(CRC, 4)
 		CRC = _CRC32_Table_Get(CRC & $0F) ~ Lsr(CRC, 4)
 	Next
+	
+	If (Not FixValue) Then
+		Return CRC
+	Endif
 	
 	Return (CRC ~ $FFFFFFFF)
 End
