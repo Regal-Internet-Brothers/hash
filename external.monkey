@@ -9,13 +9,13 @@ Public
 	#HASH_EXTERNAL_SHIFTING = True
 #End
 
-' Imports (General):
-' Nothing so far.
+' Imports:
+Import config
 
 ' Imports (Native):
 #If HASH_EXTERNAL_SHIFTING
 	#If LANG = "cpp" Or LANG = "java"
-		' All of the C++ targets SHOULD support this.
+		' All of the C++ targets should support this.
 		Import "native/hash.${LANG}"
 	#Else
 		Import "native/hash.${TARGET}.${LANG}"

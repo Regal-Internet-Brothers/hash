@@ -5,21 +5,27 @@ Public
 ' Preprocessor related:
 #HASH_CRC32_USE_ARRAYS = True
 
-' Imports:
+' Imports (Public):
+Import config
+
+' Imports (Private):
 Private
 
-Import monkey.math
+Import util
 
-Import brl.databuffer
+Public
 
-Import hash
+' Constant variable(s) (Private):
+Private
+
+Const Default_CRC:= $FFFFFFFF
 
 Public
 
 ' Functions (Public):
 
 ' Loosely based on the ZLib and UZLib source:
-Function CRC32:Int(Data:DataBuffer, Length:Int, Offset:Int=0, CRC:Int=$FFFFFFFF, FixValue:Bool=True) ' UInt
+Function CRC32:Int(Data:DataBuffer, Length:Int, Offset:Int=0, CRC:Int=Default_CRC, FixValue:Bool=True) ' UInt
 	If (Length = 0) Then
 		Return 0
 	Endif
@@ -36,6 +42,12 @@ Function CRC32:Int(Data:DataBuffer, Length:Int, Offset:Int=0, CRC:Int=$FFFFFFFF,
 	Endif
 	
 	Return (CRC ~ $FFFFFFFF)
+End
+
+' This command simply wraps 'CRC32', and outputs the result in hexadecimal.
+Function CRC32InHex:HexValue(Data:DataBuffer, Length:Int, Offset:Int=0, CRC:Int=Default_CRC, FixValue:Bool=True) ' UInt
+	' Return the hash-code in hexadecimal.
+	Return IntToHex(CRC32(Data, Length, Offset, CRC, FixValue))
 End
 
 ' Functions (Private):

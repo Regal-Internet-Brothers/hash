@@ -2,14 +2,15 @@ Strict
 
 Public
 
-' Imports:
+' Imports (Public):
+Import config
+
+' Imports (Private):
 Private
 
 Import monkey.math
 
-Import brl.databuffer
-
-Import hash
+Import util
 
 Public
 

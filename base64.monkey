@@ -2,8 +2,12 @@ Strict
 
 Public
 
-' Imports:
+' Imports (Private):
+Private
+
 Import brl.stream
+
+Public
 
 ' Constant variable(s) (Private):
 Private
