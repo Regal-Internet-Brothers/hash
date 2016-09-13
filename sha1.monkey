@@ -8,6 +8,8 @@ Import config
 ' Imports (Private):
 Private
 
+Import util
+
 Import brl.stream
 
 Import regal.util.generic

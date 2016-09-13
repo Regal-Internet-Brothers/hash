@@ -3,7 +3,7 @@ Strict
 Public
 
 ' Imports:
-Import regal.hash
+Import regal.hash.hashcode
 
 #If TARGET = "stdcpp"
 	Import regal.time

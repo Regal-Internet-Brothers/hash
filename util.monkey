@@ -14,6 +14,7 @@ Import brl.databuffer
 ' Imports (Private):
 Private
 
+Import regal.sizeof
 Import regal.retrostrings
 
 Public

@@ -6,7 +6,9 @@ Public
 #CRC32_DEMO_HEX = True
 
 ' Imports:
-Import regal.hash
+Import brl.databuffer
+
+Import regal.hash.crc32
 
 #If CRC32_DEMO_HEX
 	Import regal.retrostrings
