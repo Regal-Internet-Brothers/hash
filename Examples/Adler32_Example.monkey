@@ -6,7 +6,9 @@ Public
 #ADLER32_DEMO_HEX = True
 
 ' Imports:
-Import regal.hash
+Import brl.databuffer
+
+Import regal.hash.adler32
 
 #If ADLER32_DEMO_HEX
 	Import regal.retrostrings
