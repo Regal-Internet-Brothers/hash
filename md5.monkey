@@ -94,6 +94,7 @@ Import config
 Private
 
 Import regal.sizeof
+Import regal.util.generic
 
 Import util
 
