@@ -26,11 +26,11 @@ Public
 
 ' Loosely based on the ZLib and UZLib source:
 Function CRC32:Int(Data:DataBuffer, Length:Int, Offset:Int=0, CRC:Int=Default_CRC, FixValue:Bool=True) ' UInt
-	If (Length = 0) Then
+	If ((Length-Offset) = 0) Then
 		Return 0
 	Endif
 	
-	For Local I:= 0 Until Length
+	For Local I:= Offset Until Length
 		CRC ~= (Data.PeekByte(I) & $FF)
 		
 		CRC = _CRC32_Table_Get(CRC & $0F) ~ Lsr(CRC, 4)
