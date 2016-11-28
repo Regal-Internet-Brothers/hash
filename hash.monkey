@@ -34,4 +34,5 @@ Import base64
 	Import sha1
 	Import adler32
 	Import crc32
+	Import rc4
 #End
