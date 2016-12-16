@@ -45,11 +45,13 @@ Function Main:Int()
 	
 	WriteString(input, value)
 	
-	' Process the 
+	' Encrypt the data using the key specified.
 	RC4(input, output, key)
 	
+	' Seek back to the beginning of 'output'.
 	output.Seek(0)
 	
+	' Decrypt the previously output data using the key specified.
 	RC4(output, result, key)
 	
 	Print("Input: " + ReadString(input))
